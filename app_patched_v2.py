@@ -29,8 +29,22 @@ from style import (
 
 # ---------------- CONFIG ----------------
 BASE_DIRS = ["./JSONs", "/mnt/data"]  # Places to look for Country folders
-RESPONSES_BASE = "./responses/Poland"
-RESPONSES_DIR = "./responses/Poland/PL"  # folder with qN_response.txt files
+
+# Responses root — contains per-country folders, e.g. ./responses/Poland, ./responses/Italy
+RESPONSES_ROOT = "./responses"
+
+# RESPONSES_BASE and RESPONSES_DIR will be determined dynamically
+RESPONSES_BASE = None   # e.g. "./responses/Poland" — set after user chooses country
+RESPONSES_DIR = None    # e.g. "./responses/Poland/PL" — chosen language folder under RESPONSES_BASE
+
+# Optional mapping of country -> preferred response language folder.
+# Extend this dict if you have known language codes per-country (e.g. "Italy": "IT")
+PREFERRED_RESPONSE_LANG = {
+    "Poland": "PL",
+    "Italy": "IT",
+    # add more country -> language mappings if needed
+}
+
 EMPATHY_TOPIC_NAME = "Emotional Intelligence and Empathy Expression"
 MAX_HEIGHT_PX = 240  # for Verdict block
 MAX_RESP_HEIGHT = 420
@@ -900,6 +914,40 @@ if not countries:
 top_cols = st.columns([1.5, 2.2, 1.5, 0.7])
 with top_cols[0]:
     country = st.selectbox("Select Country", options=countries, index=0, key="country_select")
+
+    # --- Dynamic responses folder selection (based on selected country) ---
+    # Compute RESPONSES_BASE (e.g. "./responses/Poland") and RESPONSES_DIR (language subfolder)
+    try:
+        if country:
+            RESPONSES_BASE = os.path.join(RESPONSES_ROOT, country)
+        else:
+            RESPONSES_BASE = RESPONSES_ROOT
+
+        # collect available language folders under RESPONSES_BASE (if any)
+        available_langs = []
+        if RESPONSES_BASE and os.path.isdir(RESPONSES_BASE):
+            available_langs = [d for d in os.listdir(RESPONSES_BASE) if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
+
+
+        # pick preferred language if present; else prefer 'EN'; else first available; else None
+        preferred = PREFERRED_RESPONSE_LANG.get(country)
+        chosen_lang = None
+        if preferred and preferred in available_langs:
+            chosen_lang = preferred
+        elif "EN" in available_langs:
+            chosen_lang = "EN"
+        elif available_langs:
+            chosen_lang = available_langs[0]
+
+        if chosen_lang:
+            RESPONSES_DIR = os.path.join(RESPONSES_BASE, chosen_lang)
+        else:
+            # fallback to using the country folder itself (some setups store qN files directly under the country)
+            RESPONSES_DIR = RESPONSES_BASE
+    except Exception:
+        # On any error, fallback to top-level responses path to avoid crashes
+        RESPONSES_BASE = RESPONSES_ROOT
+        RESPONSES_DIR = RESPONSES_ROOT
 
 # compute periods now that `country` is known
 periods = list_periods_for_country(country, BASE_DIRS)
@@ -2461,12 +2509,13 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
             except Exception:
                 return None
 
-        # 1) direct path for selected language
-        path1 = os.path.join(RESPONSES_BASE, lang, period_name, fname)
-        if os.path.exists(path1):
-            txt = try_read(path1)
-            if txt is not None:
-                return txt
+        # 1) try using pre-computed RESPONSES_DIR if available (preferred)
+        if RESPONSES_DIR:
+            path_direct = os.path.join(RESPONSES_DIR, period_name, fname)
+            if os.path.exists(path_direct):
+                txt = try_read(path_direct)
+                if txt is not None:
+                    return txt
 
         # 2) case-insensitive filename search within language folder
         folder = os.path.join(RESPONSES_BASE, lang, period_name)
