@@ -2380,39 +2380,95 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
             except Exception:
                 q_number = None
 
-    # --- language switcher for side-by-side responses (PL / EN) using segmented_control ---
-    _options = ["PL", "EN"]
+    # --- language switcher for side-by-side responses (dynamic per-country) ---
+    # This builds the toggle options from the actual folders under ./responses/<country>.
+    # It shows friendly uppercase labels (e.g. "IT", "EN") but maps them back to the real folder names
+    # so file-loading uses the correct (case-sensitive) folder name.
 
-    # Ensure a deterministic session_state value exists BEFORE creating the widget.
-    # This avoids needing an `index` argument on segmented_control.
+    # compute available language folders under responses/<country>
+    available_langs = []
+    responses_base_ok = False
+    try:
+        if RESPONSES_BASE and os.path.isdir(RESPONSES_BASE):
+            responses_base_ok = True
+            available_langs = sorted(
+                [d for d in os.listdir(RESPONSES_BASE) if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
+            )
+    except Exception:
+        available_langs = []
+
+    # Build display -> actual-folder mapping (display labels are uppercase)
+    display_to_folder = {}
+    for fld in available_langs:
+        display_to_folder[fld.upper()] = fld
+
+    # Decide default primary language (prefer mapping in PREFERRED_RESPONSE_LANG, else choose non-EN if possible)
+    preferred_lang_folder = PREFERRED_RESPONSE_LANG.get(country)
+    primary_folder = None
+    if preferred_lang_folder and preferred_lang_folder in available_langs:
+        primary_folder = preferred_lang_folder
+    else:
+        # prefer a non-EN folder (local language) if present, otherwise prefer EN, else the first available
+        non_en = [f for f in available_langs if f.upper() != "EN"]
+        if non_en:
+            primary_folder = non_en[0]
+        elif "EN" in [f.upper() for f in available_langs]:
+            # find original-case folder for EN
+            for f in available_langs:
+                if f.upper() == "EN":
+                    primary_folder = f
+                    break
+        elif available_langs:
+            primary_folder = available_langs[0]
+
+    # Build the widget display options: primary (if any) then EN (if present) then any other remaining langs
+    _options = []
+    if primary_folder:
+        _options.append(primary_folder.upper())
+    if "EN" in display_to_folder and "EN" not in _options:
+        _options.append("EN")
+    # append other languages (uppercase labels) not yet included
+    for f in available_langs:
+        lab = f.upper()
+        if lab not in _options:
+            _options.append(lab)
+
+    # final fallback (very unlikely): ensure at least one option
+    if not _options:
+        # if there are no folders found under RESPONSES_BASE, fall back to ["PL","EN"] to preserve existing UI
+        _options = ["PL", "EN"]
+
+    # Ensure st.session_state has a valid value before creating the control.
+    # If existing saved value is not present in current options, reset to first option.
     if "responses_lang" not in st.session_state or st.session_state["responses_lang"] not in _options:
-        st.session_state["responses_lang"] = "PL"  # default
+        st.session_state["responses_lang"] = _options[0]
 
-    # Center the control visually
+    # Center the control visually (same layout as before)
     _left_col, _center_col, _right_col = st.columns([2.75, 2, 1])
     with _center_col:
-        # Put a concise label above the control for accessibility and visual clarity
-        #st.caption("Responses language")
         try:
-            # Use segmented_control (no index argument — rely on session_state)
-            responses_lang = st.segmented_control(
-                "",   # label shown for accessibility; you can set "" if you don't want visible label
-                options=_options,
-                key="responses_lang",
-                label_visibility='collapsed'
+            # we store the DISPLAY label (uppercase) in session_state; we'll map it to real folder name below
+            responses_lang_display = st.segmented_control(
+                "", options=_options, key="responses_lang", label_visibility='collapsed'
             )
         except Exception:
-            # If segmented_control not available in this Streamlit version, fallback to radio.
-            # We still do NOT pass index; radio will pick up the st.session_state value for the given key.
-            responses_lang = st.radio(
-                "",
-                options=_options,
-                key="responses_lang",
-                horizontal=True,
-            )
+            responses_lang_display = st.radio("", options=_options, key="responses_lang", horizontal=True)
 
-    # alias for local use
-    lang_sel = st.session_state.get("responses_lang", "PL")
+    # Map the display label back to the actual folder name for file-loading.
+    selected_display = st.session_state.get("responses_lang", _options[0])
+    # If we have a corresponding folder name in display_to_folder, use it; otherwise assume display == folder.
+    selected_folder = display_to_folder.get(selected_display, selected_display)
+
+    # Update RESPONSES_DIR to point to the chosen language folder (so other code can use it if needed)
+    try:
+        if RESPONSES_BASE and selected_folder:
+            RESPONSES_DIR = os.path.join(RESPONSES_BASE, selected_folder)
+    except Exception:
+        pass
+
+    # alias for local use (pass this into load_response_text if you call it with lang parameter)
+    lang_sel = selected_folder
+
 
     # spacer
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
