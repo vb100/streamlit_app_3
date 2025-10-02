@@ -2820,20 +2820,29 @@ else:
     # selected_label_for_q may be None; ensure we have a string to build keys
     selected_label_for_q = display_labels[file_index] if display_labels else None
 
-    # For each side, create an expander whose session_state key is stable per question
+    # For each side, create an expander whose state is persisted via a checkbox-backed session key.
     for side, col in (("Old", left_col), ("New", right_col)):
         exp_key = _expander_state_key(side, selected_label_for_q)
-        # Ensure default exists so expanded param can read it reliably
-        if exp_key not in st.session_state:
-            # default collapsed
-            st.session_state[exp_key] = False
+        cb_key = exp_key + "_cb"  # checkbox key used to persist the boolean
 
-        # Choose display title
+        # ensure the checkbox default exists in session_state
+        if cb_key not in st.session_state:
+            st.session_state[cb_key] = False
+
+        # friendly title for the expander
         title = f"Sources & Materials — {side} response"
 
-        # Use expanded=st.session_state[exp_key] and key=exp_key so toggle is persisted
+        # Build a tiny control row: a small inline checkbox that persists user's preference, then the expander
         with col:
-            with st.expander(title, expanded=st.session_state.get(exp_key, False), key=exp_key):
+            # show a compact checkbox to toggle the expander; label makes clear which side it controls
+            # Users can toggle checkbox to expand/collapse. The boolean is persisted per-question via cb_key.
+            user_choice = st.checkbox(f"Show {side} sources", value=st.session_state.get(cb_key, False), key=cb_key)
+            # Reflect back to session_state (st.checkbox already sets it, so this maintains compatibility)
+            st.session_state[cb_key] = bool(user_choice)
+
+            # Create expander — do NOT pass key argument (avoids TypeError on older Streamlit).
+            # Use expanded=st.session_state[cb_key] so the checkbox controls whether the expander is open.
+            with st.expander(title, expanded=st.session_state.get(cb_key, False)):
                 # inside the expander we show the same messages as before
                 src_list = old_sources if side == "Old" else new_sources
 
@@ -2843,6 +2852,5 @@ else:
                 elif not src_list:
                     st.write("_No sources listed for this response._")
                 else:
-                    # Render bullet list; keep markup escaping
                     for src in src_list:
                         st.markdown(f"- {escape(src)}")
