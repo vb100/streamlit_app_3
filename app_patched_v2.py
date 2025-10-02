@@ -2825,32 +2825,32 @@ else:
         exp_key = _expander_state_key(side, selected_label_for_q)
         cb_key = exp_key + "_cb"  # checkbox key used to persist the boolean
 
-        # ensure the checkbox default exists in session_state
+        # ensure a default exists in session_state before creating the widget
         if cb_key not in st.session_state:
             st.session_state[cb_key] = False
 
         # friendly title for the expander
         title = f"Sources & Materials — {side} response"
 
-        # Build a tiny control row: a small inline checkbox that persists user's preference, then the expander
         with col:
-            # show a compact checkbox to toggle the expander; label makes clear which side it controls
-            # Users can toggle checkbox to expand/collapse. The boolean is persisted per-question via cb_key.
-            user_choice = st.checkbox(f"Show {side} sources", value=st.session_state.get(cb_key, False), key=cb_key)
-            # Reflect back to session_state (st.checkbox already sets it, so this maintains compatibility)
-            st.session_state[cb_key] = bool(user_choice)
+            # create the checkbox using the same key we initialized above.
+            # DO NOT pass `value=` together with `key=` if you prefer to let widget manage session_state;
+            # here we rely on the pre-set session_state default and create checkbox with key only.
+            user_choice = st.checkbox(f"Show {side} sources", key=cb_key)
 
-            # Create expander — do NOT pass key argument (avoids TypeError on older Streamlit).
-            # Use expanded=st.session_state[cb_key] so the checkbox controls whether the expander is open.
-            with st.expander(title, expanded=st.session_state.get(cb_key, False)):
-                # inside the expander we show the same messages as before
+            # Now read the current boolean from session_state (widget will have already set it).
+            expanded_state = bool(st.session_state.get(cb_key, False))
+
+            # Create expander — do NOT pass key argument (older Streamlit versions don't accept it)
+            # Use expanded=expanded_state so the checkbox controls whether the expander is open.
+            with st.expander(title, expanded=expanded_state):
                 src_list = old_sources if side == "Old" else new_sources
 
                 if src_list is None:
-                    # No file present (same as earlier behavior)
                     st.info(f"No sources file found for this question ({side}).")
                 elif not src_list:
                     st.write("_No sources listed for this response._")
                 else:
                     for src in src_list:
                         st.markdown(f"- {escape(src)}")
+
