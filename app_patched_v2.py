@@ -2799,29 +2799,50 @@ else:
     new_sources = _load_sources_list(new_sources_path)
 
     # Present them in expanders below the Old/New response card area
-    # Use two columns layout to match Old/New layout above (if you used two columns for responses)
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     cols = st.columns([1, 1])
     left_col, right_col = cols[0], cols[1]
 
-    with left_col:
-        with st.expander("Sources & Materials", expanded=False):
-            if old_sources is None:
-                st.info("No sources file found for this question (Old).")
-            elif not old_sources:
-                st.write("_No sources listed for Old response._")
-            else:
-                # bullet list
-                for src in old_sources:
-                    st.markdown(f"- {escape(src)}")
+    def _sanitized_label_for_key(lbl):
+        """Return a simple sanitized safe label for session keys."""
+        if not lbl:
+            return "none"
+        s = str(lbl)
+        # keep letters, numbers, underscore and dash; replace others by underscore
+        s = re.sub(r'[^0-9A-Za-z_-]', '_', s)
+        return s
 
-    with right_col:
-        with st.expander("Sources & Materials", expanded=False):
-            if new_sources is None:
-                st.info("No sources file found for this question (New).")
-            elif not new_sources:
-                st.write("_No sources listed for New response._")
-            else:
-                for src in new_sources:
-                    st.markdown(f"- {escape(src)}")
-# ---------------- end Sources & Materials section ----------------
+    def _expander_state_key(side, display_label):
+        """Stable per-question-per-side key for the expander state."""
+        lbl = _sanitized_label_for_key(display_label)
+        return f"sources_materials_expander_{side}_{lbl}"
+
+    # selected_label_for_q may be None; ensure we have a string to build keys
+    selected_label_for_q = display_labels[file_index] if display_labels else None
+
+    # For each side, create an expander whose session_state key is stable per question
+    for side, col in (("Old", left_col), ("New", right_col)):
+        exp_key = _expander_state_key(side, selected_label_for_q)
+        # Ensure default exists so expanded param can read it reliably
+        if exp_key not in st.session_state:
+            # default collapsed
+            st.session_state[exp_key] = False
+
+        # Choose display title
+        title = f"Sources & Materials — {side} response"
+
+        # Use expanded=st.session_state[exp_key] and key=exp_key so toggle is persisted
+        with col:
+            with st.expander(title, expanded=st.session_state.get(exp_key, False), key=exp_key):
+                # inside the expander we show the same messages as before
+                src_list = old_sources if side == "Old" else new_sources
+
+                if src_list is None:
+                    # No file present (same as earlier behavior)
+                    st.info(f"No sources file found for this question ({side}).")
+                elif not src_list:
+                    st.write("_No sources listed for this response._")
+                else:
+                    # Render bullet list; keep markup escaping
+                    for src in src_list:
+                        st.markdown(f"- {escape(src)}")
