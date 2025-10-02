@@ -1189,7 +1189,7 @@ if "file_selectbox" not in st.session_state or st.session_state.get("file_select
 
 # Buttons occupy rightmost small column (buttons_top_placeholder)
 with buttons_top_placeholder.container():
-    prev_col, next_col = st.columns([1, 1])
+    prev_col, next_col = st.columns([0.6, 1])
     pad_px = 6
     pad_style = f"padding-top:{pad_px}px;"
     with prev_col:
@@ -1221,16 +1221,52 @@ with question_top_placeholder.container():
             on_change=on_file_select,
         )
     with inner_right:
-        # initialize session state default for language
-        if "question_lang" not in st.session_state:
-            st.session_state["question_lang"] = "EN"
+        # determine candidate local language code for the selected country
+        # PREFERRED_RESPONSE_LANG is a mapping you already use elsewhere (e.g. {"Poland":"PL", "Italy":"IT"})
+        # If you don't have that mapping in your code, add it near CONFIG, e.g.:
+        # PREFERRED_RESPONSE_LANG = {"Poland":"PL", "Italy":"IT"}
+        try:
+            country_local = PREFERRED_RESPONSE_LANG.get(country) if 'PREFERRED_RESPONSE_LANG' in globals() else None
+        except Exception:
+            country_local = None
+
+        # Build the question-language options: local language first (if known), then EN
+        qlang_options = []
+        if country_local:
+            qlang_options.append(country_local.upper())
+        if "EN" not in qlang_options:
+            qlang_options.append("EN")
+
+        # Guarantee there is at least one option
+        if not qlang_options:
+            qlang_options = ["EN"]
+
+        # Ensure session_state["question_lang"] exists and is valid for this set of options
+        if "question_lang" not in st.session_state or st.session_state.get("question_lang") not in qlang_options:
+            # prefer local if available, else EN
+            st.session_state["question_lang"] = qlang_options[0]
+
         st.markdown(
             "<div style='display:flex; align-items:center; height:100%; padding-left:6px; padding-right:6px;'>",
             unsafe_allow_html=True,
         )
-        # show radio but hide the label visually (non-empty label to avoid accessibility warning)
-        st.radio("Question language", options=["EN", "PL"], index=0 if st.session_state.get("question_lang","EN") == "EN" else 1,
-                 key="question_lang", horizontal=True, label_visibility="collapsed")
+
+        # Create the radio/segmented control WITHOUT passing index (rely on session_state)
+        # Keep label_visibility collapsed to match current look
+        try:
+            # segmented_control is nicer if available; it will use session_state value automatically
+            st.segmented_control(
+                "", options=qlang_options, key="question_lang", label_visibility="collapsed"
+            )
+        except Exception:
+            st.radio(
+                "",
+                options=qlang_options,
+                key="question_lang",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
+
 
 # Resolve selection (use authoritative numeric index from session_state)
 file_index = clamp_index(st.session_state.get("file_index", 0), len(files))
