@@ -4,6 +4,7 @@ import json
 import re
 from glob import glob
 import math
+import hashlib
 import textwrap
 from typing import List
 
@@ -2719,7 +2720,7 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
 # ---------------- end new feature ----------------
 
 # ---------------- New section: Sources & Materials (Old / New) ----------------
-# This block shows st.expander() for "Old" and "New" sources loaded from
+# Shows st.expander() for "Old" and "New" sources loaded from
 # JSONs/<Country>/<Period>/Sources and Materials/{Old,New}/ matching the selected question.
 
 def _find_matching_file_for_label(paths, display_label):
@@ -2751,10 +2752,8 @@ for base in BASE_DIRS:
     if os.path.isdir(p):
         sources_paths.append(p)
 
-# If no folder at all, show nothing (or a gentle note)
 if not sources_paths:
-    # Optional: do nothing OR show a small notice
-    # st.info("No 'Sources and Materials' folder present for this period.")
+    # No folder -> nothing to show
     pass
 else:
     # Collect Old / New files across base dirs (preserve dedup & order)
@@ -2773,11 +2772,11 @@ else:
     # Determine the currently selected label, typically "Qn"
     selected_label_for_q = display_labels[file_index] if display_labels else None
 
-    # Find the actual file for the selected question (if present)
+    # Find actual file path for the selected question (if present)
     old_sources_path = _find_matching_file_for_label(side_files["Old"], selected_label_for_q)
     new_sources_path = _find_matching_file_for_label(side_files["New"], selected_label_for_q)
 
-    # Safe loader helper
+    # Safe loader helper for JSONs with "sources_materials" list
     def _load_sources_list(path):
         if not path or not os.path.exists(path):
             return None
@@ -2787,65 +2786,75 @@ else:
                 return None
             lst = payload.get("sources_materials")
             if isinstance(lst, list):
-                # ensure strings and strip whitespace
                 return [str(x).strip() for x in lst if (x is not None and str(x).strip())]
             else:
                 return []
         except Exception:
             return None
 
-    # Load lists
     old_sources = _load_sources_list(old_sources_path)
     new_sources = _load_sources_list(new_sources_path)
 
-    # Present them in expanders below the Old/New response card area
+    # Build display columns
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     cols = st.columns([1, 1])
     left_col, right_col = cols[0], cols[1]
 
-    def _sanitized_label_for_key(lbl):
-        """Return a simple sanitized safe label for session keys."""
-        if not lbl:
+    def _sanitized_key_id(s: str) -> str:
+        """Return short stable id (md5) for strings/paths; safe for session keys."""
+        if not s:
             return "none"
-        s = str(lbl)
-        # keep letters, numbers, underscore and dash; replace others by underscore
-        s = re.sub(r'[^0-9A-Za-z_-]', '_', s)
-        return s
+        try:
+            # prefer absolute path if it looks like a filesystem path
+            if os.path.exists(s):
+                key_src = os.path.abspath(s)
+            else:
+                key_src = str(s)
+            return hashlib.md5(key_src.encode("utf-8")).hexdigest()[:12]
+        except Exception:
+            return re.sub(r'[^0-9A-Za-z]', '_', str(s))[:20]
 
-    def _expander_state_key(side, display_label):
-        """Stable per-question-per-side key for the expander state."""
-        lbl = _sanitized_label_for_key(display_label)
-        return f"sources_materials_expander_{side}_{lbl}"
+    # Helper that returns the unique checkbox key to persist expander state for a given side
+    def _sources_expander_checkbox_key(side: str, source_path: str, display_label: str):
+        """
+        Compose a stable key using side ('Old'|'New') and a short id derived from the actual
+        matching sources JSON path. If no path exists, fallback to the display_label.
+        """
+        if source_path:
+            idpart = _sanitized_key_id(source_path)
+        else:
+            idpart = _sanitized_key_id(display_label or "none")
+        return f"sources_materials_{side}_{idpart}_cb"
 
-    # selected_label_for_q may be None; ensure we have a string to build keys
-    selected_label_for_q = display_labels[file_index] if display_labels else None
+    # For both sides, create checkbox + expander. The checkbox key is unique per actual file
+    sides_info = [
+        ("Old", left_col, old_sources_path, old_sources),
+        ("New", right_col, new_sources_path, new_sources),
+    ]
 
-    # For each side, create an expander whose state is persisted via a checkbox-backed session key.
-    for side, col in (("Old", left_col), ("New", right_col)):
-        exp_key = _expander_state_key(side, selected_label_for_q)
-        cb_key = exp_key + "_cb"  # checkbox key used to persist the boolean
+    for side, col_obj, src_path, src_list in sides_info:
+        # compute checkbox key that is unique for this source file (or question label if file missing)
+        cb_key = _sources_expander_checkbox_key(side, src_path, selected_label_for_q)
 
-        # ensure a default exists in session_state before creating the widget
+        # initialize default BEFORE creating the widget
         if cb_key not in st.session_state:
             st.session_state[cb_key] = False
 
-        # friendly title for the expander
-        title = f"Sources & Materials — {side} response"
+        with col_obj:
+            # Show a small checkbox that controls whether the expander is open for THIS specific source file
+            # We rely on `key=cb_key` to persist the boolean across reruns.
+            show_label = f"Show {side} sources"
+            # Create the checkbox widget (it will set st.session_state[cb_key]); do NOT reassign st.session_state[cb_key] afterward.
+            _ = st.checkbox(show_label, key=cb_key)
 
-        with col:
-            # create the checkbox using the same key we initialized above.
-            # DO NOT pass `value=` together with `key=` if you prefer to let widget manage session_state;
-            # here we rely on the pre-set session_state default and create checkbox with key only.
-            user_choice = st.checkbox(f"Show {side} sources", key=cb_key)
-
-            # Now read the current boolean from session_state (widget will have already set it).
+            # read the boolean from session state to control expander expanded state
             expanded_state = bool(st.session_state.get(cb_key, False))
 
-            # Create expander — do NOT pass key argument (older Streamlit versions don't accept it)
-            # Use expanded=expanded_state so the checkbox controls whether the expander is open.
-            with st.expander(title, expanded=expanded_state):
-                src_list = old_sources if side == "Old" else new_sources
+            # friendly title
+            title = f"Sources & Materials — {side} response"
 
+            # create expander (do not pass key param to expander)
+            with st.expander(title, expanded=expanded_state):
                 if src_list is None:
                     st.info(f"No sources file found for this question ({side}).")
                 elif not src_list:
@@ -2853,4 +2862,4 @@ else:
                 else:
                     for src in src_list:
                         st.markdown(f"- {escape(src)}")
-
+# ---------------- end Sources & Materials section ----------------
