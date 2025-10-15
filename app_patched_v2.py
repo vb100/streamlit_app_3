@@ -1252,22 +1252,22 @@ with question_top_placeholder.container():
             unsafe_allow_html=True,
         )
 
-        # Create the radio/segmented control WITHOUT passing index (rely on session_state)
-        # Keep label_visibility collapsed to match current look
-        try:
-            # segmented_control is nicer if available; it will use session_state value automatically
-            st.segmented_control(
-                "", options=qlang_options, key="question_lang", label_visibility="collapsed"
-            )
-        except Exception:
-            st.radio(
-                "",
-                options=qlang_options,
-                key="question_lang",
-                horizontal=True,
-                label_visibility="collapsed",
-            )
-
+        # Create a radio control for question language — rely on session_state for the value
+        # We intentionally DO NOT pass an `index` argument; the widget reads/writes
+        # st.session_state["question_lang"] which we initialized earlier.
+        st.markdown(
+            "<div style='display:flex; align-items:center; height:100%; padding-left:6px; padding-right:6px;'>",
+            unsafe_allow_html=True,
+        )
+        # Always use a radio box (not segmented_control)
+        # The key is "question_lang" so the selected language persists in session_state.
+        st.radio(
+            "Question language",
+            options=qlang_options,
+            key="question_lang",
+            horizontal=True,
+            label_visibility="collapsed",
+        )
 
 # Resolve selection (use authoritative numeric index from session_state)
 file_index = clamp_index(st.session_state.get("file_index", 0), len(files))
@@ -2770,7 +2770,13 @@ else:
         side_files[side] = sorted(list(dict.fromkeys(side_files[side])))
 
     # Determine the currently selected label, typically "Qn"
-    selected_label_for_q = display_labels[file_index] if display_labels else None
+    # Prefer the authoritative selectbox value (persisted in session_state) so the
+    # question selection remains stable across topic/metric changes.
+    selected_label_for_q = st.session_state.get("file_selectbox")
+    if not selected_label_for_q:
+        # fallback to index-based label (keeps backward-compatibility)
+        selected_label_for_q = display_labels[file_index] if display_labels else None
+
 
     # Find actual file path for the selected question (if present)
     old_sources_path = _find_matching_file_for_label(side_files["Old"], selected_label_for_q)
@@ -2826,35 +2832,19 @@ else:
             idpart = _sanitized_key_id(display_label or "none")
         return f"sources_materials_{side}_{idpart}_cb"
 
-    # For both sides, create checkbox + expander. The checkbox key is unique per actual file
+    # For both sides, show a simple expander containing the sources (no visible checkboxes)
     sides_info = [
         ("Old", left_col, old_sources_path, old_sources),
         ("New", right_col, new_sources_path, new_sources),
     ]
 
     for side, col_obj, src_path, src_list in sides_info:
-        # compute checkbox key that is unique for this source file (or question label if file missing)
-        cb_key = _sources_expander_checkbox_key(side, src_path, selected_label_for_q)
-
-        # initialize default BEFORE creating the widget
-        if cb_key not in st.session_state:
-            st.session_state[cb_key] = False
-
         with col_obj:
-            # Show a small checkbox that controls whether the expander is open for THIS specific source file
-            # We rely on `key=cb_key` to persist the boolean across reruns.
-            show_label = f"Show {side} sources"
-            # Create the checkbox widget (it will set st.session_state[cb_key]); do NOT reassign st.session_state[cb_key] afterward.
-            _ = st.checkbox(show_label, key=cb_key)
-
-            # read the boolean from session state to control expander expanded state
-            expanded_state = bool(st.session_state.get(cb_key, False))
-
-            # friendly title
             title = f"Sources & Materials — {side} response"
 
-            # create expander (do not pass key param to expander)
-            with st.expander(title, expanded=expanded_state):
+            # Create a normal expander (do NOT pass expanded=...): let Streamlit manage open/closed UI state
+            # This removes the visible "Show ..." checkbox and keeps the UI clean.
+            with st.expander(title):
                 if src_list is None:
                     st.info(f"No sources file found for this question ({side}).")
                 elif not src_list:
@@ -2862,4 +2852,3 @@ else:
                 else:
                     for src in src_list:
                         st.markdown(f"- {escape(src)}")
-# ---------------- end Sources & Materials section ----------------
