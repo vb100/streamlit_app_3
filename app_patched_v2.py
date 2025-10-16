@@ -21,6 +21,10 @@ from matplotlib.patches import Wedge, Circle, FancyArrowPatch
 import matplotlib.patches as patches
 from io import BytesIO
 
+import difflib
+import unicodedata
+from urllib.parse import urlparse
+
 # New import for Plotly gauges
 import plotly.graph_objects as go
 
@@ -3085,6 +3089,103 @@ else:
     old_sources = _load_sources_list(old_sources_path)
     new_sources = _load_sources_list(new_sources_path)
 
+    # ------------------ source comparison helpers ------------------
+    def _normalize_text(s: str) -> str:
+        """Normalize a citation string for robust comparison."""
+        if not s:
+            return ""
+        # Unicode normalization
+        s = unicodedata.normalize("NFKC", str(s))
+        # Lowercase, strip
+        s = s.lower().strip()
+        # Collapse whitespace
+        s = re.sub(r'\s+', ' ', s)
+        # Remove leading bullets and common list markers
+        s = re.sub(r'^[\u2022\-\*\•\.\)\s]+', '', s)
+        # Remove trailing punctuation (but keep URLs intact; we'll handle URLs separately)
+        s = s.rstrip(' .,;:-')
+        return s
+
+    def _extract_first_url(s: str):
+        """Return a normalized canonical URL string if present, otherwise None."""
+        if not s:
+            return None
+        # crude url find — works for typical citations (http(s)://...)
+        m = re.search(r'(https?://[^\s\)\]\}]+)', s, flags=re.IGNORECASE)
+        if not m:
+            return None
+        raw = m.group(1).rstrip('.,;:')
+        try:
+            p = urlparse(raw)
+            netloc = p.netloc.lower()
+            # strip www.
+            if netloc.startswith("www."):
+                netloc = netloc[4:]
+            # reconstruct canonical-ish path (no query params)
+            path = p.path.rstrip('/')
+            canon = f"{netloc}{path}"
+            return canon
+        except Exception:
+            return raw.lower().rstrip('/')
+
+    def _is_match(new_s: str, old_s: str, fuzzy_threshold: float = 0.86) -> (bool, float):
+        """
+        Return (match_bool, score).
+        Matching strategy:
+          1) if both have URLs and canonical URLs match -> match (score 1.0).
+          2) if normalized strings equal -> match (score 1.0).
+          3) else compute difflib ratio; if >= threshold, treat as match.
+        """
+        if not new_s or not old_s:
+            return (False, 0.0)
+        # Try URL match
+        new_url = _extract_first_url(new_s)
+        old_url = _extract_first_url(old_s)
+        if new_url and old_url:
+            if new_url == old_url:
+                return (True, 1.0)
+        # Exact normalized string
+        nn = _normalize_text(new_s)
+        on = _normalize_text(old_s)
+        if not nn or not on:
+            return (False, 0.0)
+        if nn == on:
+            return (True, 1.0)
+        # Fuzzy similarity fallback (difflib)
+        # Use SequenceMatcher quick ratio
+        score = difflib.SequenceMatcher(a=nn, b=on).ratio()
+        if score >= fuzzy_threshold:
+            return (True, score)
+        return (False, score)
+
+    # Prepare comparison results (map each new item -> (is_new, best_match, best_score))
+    new_flags = []  # list of tuples (new_src, is_new_bool, best_match_str_or_None, score_float)
+    _old_list = old_sources or []
+    _new_list = new_sources or []
+
+    # Defensive: if no old list, mark everything in new as new
+    if not _old_list:
+        for s in _new_list:
+            new_flags.append((s, True, None, 0.0))
+    else:
+        # For each new source, check best match among old sources
+        for ns in _new_list:
+            best_score = -1.0
+            best_match = None
+            matched = False
+            for osrc in _old_list:
+                is_m, score = _is_match(ns, osrc, fuzzy_threshold=0.86)
+                if score > best_score:
+                    best_score = score
+                    best_match = osrc
+                if is_m:
+                    matched = True
+                    # we still keep best_score/best_match for tooltip info
+                    break
+            new_flags.append((ns, not matched, best_match if matched else best_match, best_score))
+    # ------------------ END: source comparison helpers ---------------
+
+
     # Build display columns
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     cols = st.columns([1, 1])
@@ -3122,17 +3223,85 @@ else:
         ("New", right_col, new_sources_path, new_sources),
     ]
 
+    # ----------------- helper: linkify a plain citation string into safe HTML -----------------
+    def _linkify_citation(text: str) -> str:
+        """
+        Find http(s)://... occurrences in `text` and replace each with a safe HTML anchor.
+        Non-URL parts are HTML-escaped. Returns HTML string (safe for unsafe_allow_html=True).
+        """
+        if not text:
+            return ""
+
+        parts = []
+        last_end = 0
+        # regex: find http/https urls up to whitespace or closing parens/brackets; we'll strip trailing punctuation
+        url_re = re.compile(r"https?://[^\s\)\]\}]+", flags=re.IGNORECASE)
+        for m in url_re.finditer(text):
+            start, end = m.start(), m.end()
+            # append escaped text before URL
+            if start > last_end:
+                parts.append(escape(text[last_end:start]))
+            raw_url = m.group(0).rstrip('.,;:')  # remove trailing punctuation if present
+            safe_url = escape(raw_url)
+            # create anchor that opens in new tab (and is safe)
+            anchor = f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer">{safe_url}</a>'
+            parts.append(anchor)
+            last_end = end
+        # append remainder
+        if last_end < len(text):
+            parts.append(escape(text[last_end:]))
+
+        return "".join(parts)
+
+
+    # ----------------- Render Old / New expanders (Old = plain, New = flagged + linkified) -----------------
     for side, col_obj, src_path, src_list in sides_info:
         with col_obj:
             title = f"Sources & Materials — {side} response"
 
-            # Create a normal expander (do NOT pass expanded=...): let Streamlit manage open/closed UI state
-            # This removes the visible "Show ..." checkbox and keeps the UI clean.
+            # Normal expander — let Streamlit remember open/closed state automatically.
             with st.expander(title):
                 if src_list is None:
                     st.info(f"No sources file found for this question ({side}).")
-                elif not src_list:
+                    continue
+                if not src_list:
                     st.write("_No sources listed for this response._")
-                else:
+                    continue
+
+                # OLD: render as simple markdown list but linkify URLs so links are clickable too
+                if side == "Old":
                     for src in src_list:
-                        st.markdown(f"- {escape(src)}")
+                        # convert any URL to clickable anchor, keep other text escaped
+                        linked_html = _linkify_citation(src)
+                        # if no URL was present, _linkify_citation returns escaped text, but we want a markdown bullet.
+                        # Use a small HTML fragment to match earlier style (use dash + space)
+                        st.markdown(f"- {linked_html}", unsafe_allow_html=True)
+
+                # NEW: render using new_flags — build a consistent <ul><li> list so spacing matches Old side
+                else:  # side == "New"
+                    # Build an HTML unordered list so spacing/appearance matches the Old side's markdown list items
+                    # Choose margin-bottom that visually matches Old; adjust px if you want slightly different spacing
+                    LI_MARGIN_PX = 17  # tweak this so spacing equals Old side (10 is typical)
+                    ul_items = []
+                    ul_items.append(f'<ul style="padding-left:18px; margin-top:0; margin-bottom:0;">')
+                    for src, is_new, best_match, score in new_flags:
+                        linked_html = _linkify_citation(src)
+                        if is_new:
+                            if best_match:
+                                tooltip = f'closest match: {escape(best_match)} — score={score:.2f}'
+                            else:
+                                tooltip = "no similar source in Old list"
+                            # Put icon inside <span> with title for tooltip; keep same text/link structure as others
+                            li_html = (
+                                f'<li style="margin-bottom:{LI_MARGIN_PX}px;">'
+                                f'<span style="font-weight:700; color:#c0392b; margin-right:6px;" title="{escape(tooltip)}">🔔</span>'
+                                f'{linked_html}'
+                                f'</li>'
+                            )
+                        else:
+                            li_html = f'<li style="margin-bottom:{LI_MARGIN_PX}px;">{linked_html}</li>'
+                        ul_items.append(li_html)
+                    ul_items.append('</ul>')
+                    full_ul_html = "".join(ul_items)
+                    # render the whole list at once (safe: linkify already escaped non-URL text)
+                    st.markdown(full_ul_html, unsafe_allow_html=True)
