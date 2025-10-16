@@ -17,7 +17,8 @@ from html import escape
 # New imports for Matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Wedge, Circle
+from matplotlib.patches import Wedge, Circle, FancyArrowPatch
+import matplotlib.patches as patches
 from io import BytesIO
 
 # New import for Plotly gauges
@@ -171,7 +172,7 @@ def list_json_files(country: str, period: str, topic: str, base_dirs: List[str])
 def load_json(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-    
+
 
 @st.cache_data(show_spinner=False)
 def load_scalar_explanations(path: str = "./scalar_explanations/explanations.json") -> dict:
@@ -987,7 +988,7 @@ question_placeholder = st.empty()
 # ---------------- NEW: Metric kind radio (Semantic vs Scalar) ----------------
 metric_kind = st.radio(
     "Select metric type",
-    options=["Semantic Metric", "Scalar Metric"],
+    options=["Semantic Metric", "Scalar Metric", "Political Compass"],
     index=0,
     horizontal=True,
     key="metric_kind_select",
@@ -1513,7 +1514,7 @@ if metric_kind == "Scalar Metric":
             try:
                 fig = make_matplotlib_scalar_gauge(val, title="", figsize=(4.2, 1.8))
                 buf = BytesIO()
-                fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.02, transparent=True)
+                fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.04, dpi=120, transparent=True)
                 plt.close(fig)
                 buf.seek(0)
                 img_bytes = buf.getvalue()
@@ -1675,6 +1676,289 @@ if metric_kind == "Scalar Metric":
 
         # Right: New metric card (aligned)
         render_metric_card(new_col, k_new, v_new)
+
+# Compass indicator
+# ---------------- New: Political Compass view (per-question) ----------------
+elif metric_kind == "Political Compass":
+    # Compass data lives under: ./Compass/<Country>/Political Compass/Qn.json
+    COMPASS_BASE = "./Compass"
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    # st.subheader("Political Compass")
+
+    # Determine question number (robustly) from selected label / question_key / display_labels
+    q_number = None
+    # selected_label_for_q is already computed earlier in your app (display label like 'Q1' or 'Q2')
+    if selected_label_for_q:
+        m = re.search(r'(?i)Q(\d{1,3})', str(selected_label_for_q))
+        if m:
+            try:
+                q_number = int(m.group(1))
+            except Exception:
+                q_number = None
+        else:
+            m2 = re.search(r'(\d{1,3})', str(selected_label_for_q))
+            if m2:
+                try:
+                    q_number = int(m2.group(1))
+                except Exception:
+                    q_number = None
+
+    # fallback: try from question_key (if present)
+    if q_number is None and question_key:
+        m3 = re.search(r'(\d{1,3})', str(question_key))
+        if m3:
+            try:
+                q_number = int(m3.group(1))
+            except Exception:
+                q_number = None
+
+    # Create a helper to try several filename variants
+    def find_compass_file(country_name: str, qn: int):
+        if not country_name or qn is None:
+            return None
+        possible_names = [f"Q{qn}.json", f"q{qn}.json", f"{qn}.json", f"Q{qn}_compass.json", f"q{qn}_compass.json"]
+        # first try country-level dir
+        base = os.path.join(COMPASS_BASE, country_name, "Political Compass")
+        for name in possible_names:
+            p = os.path.join(base, name)
+            if os.path.exists(p):
+                return p
+        # try upper/lowercase or alternative directories (robust fallback)
+        if os.path.isdir(base):
+            for fn in os.listdir(base):
+                for name in possible_names:
+                    if fn.lower() == name.lower():
+                        return os.path.join(base, fn)
+        # not found
+        return None
+
+    # Try to locate file
+    compass_path = None
+    if q_number is not None:
+        compass_path = find_compass_file(country, q_number)
+
+    if not compass_path:
+        st.warning("No compass data file found for the selected question. Expected path like: ./Compass/<Country>/Political Compass/Q{n}.json")
+        st.info("Place per-question compass JSONs under `Compass/<Country>/Political Compass/Qn.json` (example in repo).")
+    else:
+        # Load JSON compass file
+        try:
+            with open(compass_path, "r", encoding="utf-8") as fh:
+                compass_data = json.load(fh)
+        except Exception as e:
+            st.error(f"Failed to load compass JSON `{compass_path}`: {e}")
+            compass_data = None
+
+        if not compass_data:
+            st.write("No valid data found in compass JSON.")
+        else:
+            # Show source file path
+            # st.markdown(f"**Compass file:** `{escape(compass_path)}`")
+
+            # Build table to display timeline (use insertion order from JSON)
+            try:
+                import pandas as _pd
+                rows = []
+                for ts, vals in compass_data.items():
+                    # safe numeric formatting
+                    lv = vals.get("Left vs. Right", None)
+                    av = vals.get("Authoritarian vs. Libertarian", None)
+                    try:
+                        lv_f = float(lv)
+                    except Exception:
+                        lv_f = None
+                    try:
+                        av_f = float(av)
+                    except Exception:
+                        av_f = None
+                    rows.append({"Timestamp": ts, "Left vs. Right": lv_f, "Authoritarian vs. Libertarian": av_f})
+                df_compass = _pd.DataFrame(rows)
+                # st.subheader("Timeline Data")
+                # st.dataframe(df_compass, use_container_width=True, hide_index=True)
+            except Exception:
+                # If pandas is not desired, show simple list
+                st.markdown("**Timeline Data**")
+                for ts, vals in compass_data.items():
+                    st.markdown(f"- **{ts}** — Left vs. Right: `{vals.get('Left vs. Right')}`, Authoritarian vs. Libertarian: `{vals.get('Authoritarian vs. Libertarian')}`")
+
+            # --- Now build the matplotlib plot (based on your working code) ---
+            # Prepare points in order
+            points = []
+            timestamps = []
+            for ts, vals in compass_data.items():
+                try:
+                    x_value = float(vals.get("Left vs. Right", 0.0))
+                except Exception:
+                    x_value = 0.0
+                try:
+                    y_value = float(vals.get("Authoritarian vs. Libertarian", 0.0))
+                except Exception:
+                    y_value = 0.0
+                # clamp to [-1,1]
+                x_value = max(-1.0, min(1.0, x_value))
+                y_value = max(-1.0, min(1.0, y_value))
+                # In your convention negative = Authoritarian (top) -> invert for plotting
+                plot_y = -y_value
+                points.append((x_value, plot_y))
+                timestamps.append(ts)
+
+            # Matplotlib rendering
+            # make the figure more compact
+            fig, ax = plt.subplots(figsize=(5.5, 5.5), dpi=100)
+
+            # later reduce marker size and label font
+            MARKER_SIZE = 10             # was 12 — reduce a bit
+            label_fontsize = 12          # was 14 — reduce a bit
+            # annotation fontsize (timestamp labels)
+            annot_fontsize = 9           # used when annotating timestamps
+
+
+            # ----------------------------
+            # Gradient background (replace the four static rectangles)
+            # ----------------------------
+            # choose quadrant colors (top-left, top-right, bottom-left, bottom-right)
+            hex_tl = "#FF9999"  # top-left (Authoritarian Left)
+            hex_tr = "#6BB6FF"  # top-right (Authoritarian Right)
+            hex_bl = "#90EE90"  # bottom-left (Libertarian Left)
+            hex_br = "#DDA0DD"  # bottom-right (Libertarian Right)
+
+            def hex_to_rgb_norm(h):
+                h = h.lstrip("#")
+                return np.array([int(h[i:i+2], 16) for i in (0, 2, 4)], dtype=np.float32) / 255.0
+
+            c_tl = hex_to_rgb_norm(hex_tl)
+            c_tr = hex_to_rgb_norm(hex_tr)
+            c_bl = hex_to_rgb_norm(hex_bl)
+            c_br = hex_to_rgb_norm(hex_br)
+
+            # Build a small grid for the background image (resolution tradeoff: 300..600 ok)
+            img_res = 420  # tweak: larger -> smoother but heavier; 300–600 recommended
+            xs = np.linspace(-1.0, 1.0, img_res)
+            ys = np.linspace(-1.0, 1.0, img_res)
+            XX, YY = np.meshgrid(xs, ys)
+
+            # Convert coordinates to normalized u (0..1 left->right) and v (0..1 bottom->top)
+            # Make them explicitly (H, W, 1) so broadcasting with (1,1,3) corner colors works cleanly
+            u = ((XX + 1.0) / 2.0)[..., None]  # shape (H, W, 1)
+            v = ((YY + 1.0) / 2.0)[..., None]  # shape (H, W, 1)
+
+            # Bilinear blend between four corner colors:
+            # color = (1-u)*(1-v)*bl + u*(1-v)*br + (1-u)*v*tl + u*v*tr
+            img_rgb = (
+                (1.0 - u) * (1.0 - v) * c_bl[None, None, :] +
+                u * (1.0 - v) * c_br[None, None, :] +
+                (1.0 - u) * v * c_tl[None, None, :] +
+                u * v * c_tr[None, None, :]
+            )  # result shape: (H, W, 3)
+
+            # Optional mild vignette to desaturate edges (uncomment to use)
+            # rr = np.sqrt(XX**2 + YY**2)
+            # vignette = 1.0 - 0.35 * np.clip(rr / np.max(rr), 0.0, 1.0)
+            # img_rgb = img_rgb * vignette[..., None]
+
+            # Convert to 0..255 uint8 RGB for imshow
+            img_rgb = np.clip(img_rgb, 0.0, 1.0)
+            img_uint8 = (img_rgb * 255).astype(np.uint8)
+
+            # Draw background image with imshow as extent matching plot coords.
+            xmin, xmax = -1.05, 1.05
+            ymin, ymax = -1.05, 1.05
+            bg_artist = ax.imshow(img_uint8, origin="lower", extent=(xmin, xmax, ymin, ymax),
+                                  interpolation='bilinear', zorder=0, alpha=0.95)
+
+            # Optional: clip gradient to a circle so it looks like a round compass.
+            # from matplotlib.patches import Circle
+            # bg_artist.set_clip_path(Circle((0, 0), radius=1.02, transform=ax.transData))
+
+            # Draw grid lines above the gradient (single loop; zorder ensures they're visible)
+            for i in np.arange(-1, 1.1, 0.1):
+                ax.axhline(y=i, color='white', linewidth=0.5, alpha=0.5, zorder=1)
+                ax.axvline(x=i, color='white', linewidth=0.5, alpha=0.5, zorder=1)
+
+
+            # --- set desired plot bounds BEFORE drawing center lines ---
+            # choose limits which nicely frame the compass content
+            xmin, xmax = -1.05, 1.05
+            ymin, ymax = -1.05, 1.05
+            ax.set_xlim(xmin, xmax)
+            ax.set_ylim(ymin, ymax)
+
+            # Draw center lines truncated to plot bounds:
+            ax.hlines(0, xmin, xmax, colors='black', linewidth=2, zorder=2)
+            ax.vlines(0, ymin, ymax, colors='black', linewidth=2, zorder=2)
+
+            # draw arrows between consecutive points (if length > 1)
+            if len(points) > 1:
+                for i in range(len(points) - 1):
+                    x1, y1 = points[i]
+                    x2, y2 = points[i + 1]
+                    arrow = FancyArrowPatch((x1, y1), (x2, y2),
+                                            arrowstyle='->', mutation_scale=20,
+                                            linewidth=2.8, color='darkblue', alpha=0.8, zorder=4)
+                    ax.add_patch(arrow)
+
+            # plot markers + star and timestamp labels
+            colors = ['#FF4444', '#4444FF', '#44FF44', '#FF44FF', '#FFAA00', '#00AAFF', '#AA00FF', '#AAFF00']
+            MARKER_SIZE = 12
+            for idx, ((xv, yv), ts) in enumerate(zip(points, timestamps)):
+                color = colors[idx % len(colors)]
+                ax.plot(xv, yv, 'o', markersize=MARKER_SIZE, color=color,
+                        markeredgecolor='black', markeredgewidth=1.8, zorder=6)
+                ax.plot(xv, yv, '*', markersize=MARKER_SIZE+6, color='gold',
+                        markeredgecolor='black', markeredgewidth=1.0, zorder=7)
+
+                # annotate timestamp with slight offset
+                offx = 0.06 if xv < 0.8 else -0.06
+                offy = 0.06 if yv < 0.8 else -0.06
+                ax.annotate(ts, xy=(xv, yv), xytext=(xv + offx, yv + offy),
+                            fontsize=9, fontweight='bold',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='white',
+                                      edgecolor='black', alpha=0.85),
+                            zorder=8)
+
+            ax.set_xlim(-1.2, 1.2)
+            ax.set_ylim(-1.2, 1.2)
+            ax.set_aspect('equal')
+
+            # corner labels
+            label_fontsize = 14
+            ax.text(-1.11, -0.0145, 'Left', fontsize=label_fontsize, ha='right', va='center',
+                    rotation=90, fontweight='bold', color='#333')
+            ax.text(1.1, -0.0145, 'Right', fontsize=label_fontsize, ha='left', va='center',
+                    rotation=90, fontweight='bold', color='#333')
+            ax.text(0, 1.12, 'Authoritarian', fontsize=label_fontsize, ha='center', va='bottom',
+                    fontweight='bold', color='#333')
+            ax.text(0, -1.12, 'Libertarian', fontsize=label_fontsize, ha='center', va='top',
+                    fontweight='bold', color='#333')
+
+            ax.text(0.265, -0.05, '← economic scale →', fontsize=7, ha='center', va='top',
+                    style='italic', color='#555')
+            ax.text(0.05, 0.25, '← social scale →', fontsize=7, ha='left', va='center',
+                    rotation=90, style='italic', color='#555')
+
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            # --- Remove outer border (spines/frame) so no black rectangle is shown ---
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            ax.set_frame_on(False)
+            # Also hide the figure patch (background) to ensure transparency / no visible edge
+            fig.patch.set_visible(False)
+
+
+            plt.tight_layout()
+            # Save to buffer and display as image with explicit width
+            buf = BytesIO()
+            fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.04, dpi=120, transparent=True)
+            plt.close(fig)
+            buf.seek(0)
+            # Center the image using columns
+            col_left, col_center, col_right = st.columns([1.96, 2, 1])
+            with col_center:
+                # use_container_width=True lets the image scale to the column width
+                st.image(buf, use_container_width=False, width=640)
 
 # -----------------------------------------------------------------------------------------
 # ---------------- Semantic metrics handling (unchanged except logical consistency gauges) ----------------
