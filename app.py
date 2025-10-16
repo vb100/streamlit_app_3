@@ -932,8 +932,8 @@ with top_cols[0]:
         # collect available language folders under RESPONSES_BASE (if any)
         available_langs = []
         if RESPONSES_BASE and os.path.isdir(RESPONSES_BASE):
-            available_langs = [d for d in os.listdir(RESPONSES_BASE) if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
-
+            available_langs = [d for d in os.listdir(RESPONSES_BASE)
+                               if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
 
         # pick preferred language if present; else prefer 'EN'; else first available; else None
         preferred = PREFERRED_RESPONSE_LANG.get(country)
@@ -950,10 +950,23 @@ with top_cols[0]:
         else:
             # fallback to using the country folder itself (some setups store qN files directly under the country)
             RESPONSES_DIR = RESPONSES_BASE
+
+        # --- NEW: persist available languages and the chosen/default language into session_state ---
+        # so later UI code can render language options specific to the selected country.
+        st.session_state["available_response_langs"] = available_langs  # e.g. ['PL','EN'] or ['IT','EN']
+        # ensure a stable 'responses_lang' key exists (used by segmented_control later)
+        if "responses_lang" not in st.session_state or st.session_state["responses_lang"] not in available_langs:
+            # if chosen_lang exists use it, otherwise prefer existing session_state or fallback to first available
+            st.session_state["responses_lang"] = chosen_lang or st.session_state.get("responses_lang") or (available_langs[0] if available_langs else None)
+
     except Exception:
         # On any error, fallback to top-level responses path to avoid crashes
         RESPONSES_BASE = RESPONSES_ROOT
         RESPONSES_DIR = RESPONSES_ROOT
+        st.session_state["available_response_langs"] = []
+        if "responses_lang" not in st.session_state:
+            st.session_state["responses_lang"] = None
+
 
 # compute periods now that `country` is known
 periods = list_periods_for_country(country, BASE_DIRS)
@@ -2759,25 +2772,36 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
             _options.append(lab)
 
     # final fallback (very unlikely): ensure at least one option
-    if not _options:
-        # if there are no folders found under RESPONSES_BASE, fall back to ["PL","EN"] to preserve existing UI
-        _options = ["PL", "EN"]
+    # Determine language options for responses (per selected country) - fall back to ['PL','EN']
+    _options = st.session_state.get("available_response_langs", []) or ["PL", "EN"]
 
-    # Ensure st.session_state has a valid value before creating the control.
-    # If existing saved value is not present in current options, reset to first option.
+    # safety: if duplicates or weird entries, normalize to uppercase short tokens
+    # (keep the original tokens as they are - some countries use 'IT' etc.)
+    _options = list(dict.fromkeys(_options))  # dedupe while preserving order
+
+    # Ensure a deterministic session_state value exists BEFORE creating the widget.
     if "responses_lang" not in st.session_state or st.session_state["responses_lang"] not in _options:
-        st.session_state["responses_lang"] = _options[0]
+        # prefer previously chosen language (if set), else first available
+        st.session_state["responses_lang"] = st.session_state.get("responses_lang") or _options[0]
 
-    # Center the control visually (same layout as before)
+    # Center the control visually
     _left_col, _center_col, _right_col = st.columns([2.75, 2, 1])
     with _center_col:
         try:
-            # we store the DISPLAY label (uppercase) in session_state; we'll map it to real folder name below
-            responses_lang_display = st.segmented_control(
-                "", options=_options, key="responses_lang", label_visibility='collapsed'
+            responses_lang = st.segmented_control(
+                "",   # label hidden for visual but accessible
+                options=_options,
+                key="responses_lang",
+                label_visibility='collapsed'
             )
         except Exception:
-            responses_lang_display = st.radio("", options=_options, key="responses_lang", horizontal=True)
+            responses_lang = st.radio(
+                "",
+                options=_options,
+                key="responses_lang",
+                horizontal=True,
+            )
+
 
     # Map the display label back to the actual folder name for file-loading.
     selected_display = st.session_state.get("responses_lang", _options[0])
