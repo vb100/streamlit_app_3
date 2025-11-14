@@ -785,31 +785,48 @@ with top_cols[0]:
 periods = list_periods_for_country(country, BASE_DIRS)
 
 with top_cols[1]:
+    # keep `period_selected` in session_state authoritative and consistent
     country_selected = st.session_state.get("country_selected")
     if country_selected != country:
         st.session_state["country_selected"] = country
-        st.session_state["period_selected"] = periods[0]
-    period_selected = st.session_state.get("period_selected", periods[0])
-    period_index = periods.index(period_selected) if period_selected in periods else 0
+        # initialize session's period to the first available one
+        st.session_state["period_selected"] = periods[0] if periods else None
 
+    # compute safe index for the selectbox from session_state
+    period_selected = st.session_state.get("period_selected", periods[0] if periods else None)
+    period_index = periods.index(period_selected) if (period_selected in periods) else 0
+
+    # When the user changes period we want to reset file/topic indices so dependent UI updates.
+    def _on_period_change():
+        # reset view to first file for the (new) period
+        st.session_state["file_index"] = 0
+        # leave topic_selected to be recomputed below (we set it to None so subsequent code sets canonical topic)
+        st.session_state["topic_selected"] = None
+
+    # Use the same session_state key ('period_selected') for the selectbox.
+    # This avoids any later manual sync and removes the stale-state race.
     period = st.selectbox(
         "Select Period",
         options=periods,
         index=period_index,
-        key="period_select",
+        key="period_selected",    # IMPORTANT: single authoritative key
+        on_change=_on_period_change
     )
 
-# placeholders for the question select + language radio and for the prev/next buttons (kept in top row)
-question_top_placeholder = top_cols[2].empty()
-buttons_top_placeholder = top_cols[3].empty()
+    # placeholders for the question select + language radio and for the prev/next buttons (kept in top row)
+    question_top_placeholder = top_cols[2].empty()
+    buttons_top_placeholder = top_cols[3].empty()
 
-# compute topics (subfolders under period)
-topics = list_topics_for_country_period(country, period, BASE_DIRS)
-period_selected_ss = st.session_state.get("period_selected")
-if period_selected_ss != period:
-    st.session_state["period_selected"] = period
-    st.session_state["topic_selected"] = topics[0]
-topic_selected = st.session_state.get("topic_selected", topics[0])
+    # compute topics (subfolders under period) using the fresh `period` value
+    topics = list_topics_for_country_period(country, period, BASE_DIRS)
+
+    # If topic_selected was cleared by the change callback above or otherwise missing,
+    # normalize it here to a canonical value based on computed topics.
+    if topics:
+        # If no topic selected or mismatch, set it to the first topic (this keeps the app consistent)
+        if st.session_state.get("topic_selected") not in topics:
+            st.session_state["topic_selected"] = topics[0]
+
 topic_index = topics.index(topic_selected) if topic_selected in topics else 0
 
 # ---------------- Insert question placeholder HERE (it will be updated later after files/labels are known) ----------------
