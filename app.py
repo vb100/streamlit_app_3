@@ -73,6 +73,7 @@ def safe_map_lower(val):
     except Exception:
         return ""
 
+
 def make_traffic_light_svg(value: int, diameter=18, gap=6):
     try:
         v = int(value)
@@ -81,10 +82,20 @@ def make_traffic_light_svg(value: int, diameter=18, gap=6):
     v = max(-3, min(3, v))
     idx_active = v + 3  # 0..6
 
-    colors = ["#d73027", "#fc8d59", "#fee08b", "#cccccc", "#d9ef8b", "#91cf60", "#1a9850"]
+    colors = [
+        "#d73027",
+        "#fc8d59",
+        "#fee08b",
+        "#cccccc",
+        "#d9ef8b",
+        "#91cf60",
+        "#1a9850",
+    ]
     total_h = 7 * diameter + 10 * gap
     w = diameter + 4
-    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{total_h}" viewBox="0 0 {w} {total_h}">']
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{total_h}" viewBox="0 0 {w} {total_h}">'
+    ]
     y = 0
     for i in range(7):
         fill = colors[i]
@@ -92,7 +103,9 @@ def make_traffic_light_svg(value: int, diameter=18, gap=6):
         r = diameter / 2
         cx = w / 2
         cy = y + r
-        parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="{4 if i==idx_active else 1.0}"/>')
+        parts.append(
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="{4 if i==idx_active else 1.0}"/>'
+        )
         y += diameter + gap
     parts.append("</svg>")
     return "".join(parts)
@@ -117,7 +130,9 @@ def make_indicator_svg(value: int, seg_width=20, seg_height=12, gap=4, stroke=1)
 
     total_w = 7 * seg_width + 6 * gap
     total_h = seg_height + 2 * stroke
-    svg_parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{total_w}" height="{total_h}" viewBox="0 0 {total_w} {total_h}">']
+    svg_parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{total_w}" height="{total_h}" viewBox="0 0 {total_w} {total_h}">'
+    ]
 
     x = 0
     for i in range(7):
@@ -143,6 +158,7 @@ def svg_to_data_uri(svg_str: str) -> str:
     b = svg_str.encode("utf-8")
     b64 = base64.b64encode(b).decode("ascii")
     return f"data:image/svg+xml;base64,{b64}"
+
 
 def collect_evidence_phrases(evidence_block) -> List[str]:
     """
@@ -182,6 +198,7 @@ def collect_evidence_phrases(evidence_block) -> List[str]:
             phrases.append(s)
     return phrases
 
+
 def find_non_overlapping_matches(text: str, phrases: List[str]) -> List[tuple]:
     """
     Return list of (start, end, matched_text) for non-overlapping matches.
@@ -195,7 +212,9 @@ def find_non_overlapping_matches(text: str, phrases: List[str]) -> List[tuple]:
     matches = []
 
     # sort phrases by length descending so longer phrases get priority
-    phrases_sorted = sorted(list(dict.fromkeys(phrases)), key=lambda s: len(s), reverse=True)
+    phrases_sorted = sorted(
+        list(dict.fromkeys(phrases)), key=lambda s: len(s), reverse=True
+    )
 
     for phrase in phrases_sorted:
         if not phrase or len(phrase.strip()) == 0:
@@ -214,6 +233,7 @@ def find_non_overlapping_matches(text: str, phrases: List[str]) -> List[tuple]:
     # sort by start
     matches.sort(key=lambda t: t[0])
     return matches
+
 
 def highlight_text(text: str, phrases: List[str], mark_class: str = "evidence") -> str:
     """
@@ -241,6 +261,7 @@ def highlight_text(text: str, phrases: List[str], mark_class: str = "evidence") 
         out_parts.append(escape(text[last:]).replace("\n", "<br/>"))
     return "".join(out_parts)
 
+
 # ---------------- New: thermometer SVG generator for scalar metrics ----------------
 def _lerp(a, b, t):
     return a + (b - a) * t
@@ -248,7 +269,7 @@ def _lerp(a, b, t):
 
 def _hex_to_rgb(hex_color: str):
     hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def _rgb_to_hex(rgb):
@@ -282,7 +303,9 @@ def make_thermometer_svg(value: float, width=64, height=160, show_value=True):
     # layout
     padding_top = 10
     padding_bottom = 12
-    tube_height = height - padding_top - padding_bottom - 10  # leave room for label number
+    tube_height = (
+        height - padding_top - padding_bottom - 10
+    )  # leave room for label number
     tube_width = width * 0.35
     bulb_radius = tube_width * 0.85
     cx = width / 2
@@ -301,7 +324,7 @@ def make_thermometer_svg(value: float, width=64, height=160, show_value=True):
     # numeric text
     pct_text = f"{v:.2f}"
 
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
       <defs>
         <linearGradient id="gradFill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="{fill_color}" stop-opacity="1"/>
@@ -323,7 +346,7 @@ def make_thermometer_svg(value: float, width=64, height=160, show_value=True):
       <!-- numeric text -->
       <text x="{cx}" y="{padding_top+3}" font-family="Arial,Helvetica,sans-serif" font-size="14" fill="#111" text-anchor="middle">{pct_text}</text>
 
-    </svg>'''
+    </svg>"""
     return svg
 
 
@@ -343,7 +366,9 @@ def plot_semi_gauge(categories, colors, selected="No Change", figsize=(3.6, 1.7)
 
     n = len(categories)
     edges = np.linspace(180.0, 0.0, n + 1)
-    display_order = list(range(n - 1, -1, -1))  # reverse draw so red ends up left, green right
+    display_order = list(
+        range(n - 1, -1, -1)
+    )  # reverse draw so red ends up left, green right
 
     # Draw wedges
     for w, c_idx in enumerate(display_order):
@@ -359,7 +384,7 @@ def plot_semi_gauge(categories, colors, selected="No Change", figsize=(3.6, 1.7)
                 facecolor=colors[c_idx],
                 edgecolor="#cfcfcf",
                 linewidth=2.0,
-                zorder=2
+                zorder=2,
             )
         )
 
@@ -371,7 +396,7 @@ def plot_semi_gauge(categories, colors, selected="No Change", figsize=(3.6, 1.7)
             [inner_radius * np.sin(a), outer_radius * np.sin(a)],
             color="#cfcfcf",
             lw=1.6,
-            zorder=3
+            zorder=3,
         )
 
     # Labels positioned outside (wrapped + dynamic fontsize + radius tweak to reduce overlap)
@@ -421,18 +446,28 @@ def plot_semi_gauge(categories, colors, selected="No Change", figsize=(3.6, 1.7)
 
         # use bbox to improve readability (subtle)
         ax.text(
-            x, y, raw_label,
-            ha=ha, va="center",
-            fontsize=fs, color="#0f0f0f",
-            clip_on=False, zorder=10,
-            bbox=dict(facecolor="white", edgecolor="none", pad=0.2, alpha=0.0)  # alpha 0.0 just reserves box space; set >0.0 if you want a visible box
+            x,
+            y,
+            raw_label,
+            ha=ha,
+            va="center",
+            fontsize=fs,
+            color="#0f0f0f",
+            clip_on=False,
+            zorder=10,
+            bbox=dict(
+                facecolor="white", edgecolor="none", pad=0.2, alpha=0.0
+            ),  # alpha 0.0 just reserves box space; set >0.0 if you want a visible box
         )
-
 
     # Needle / pointer
     # Try matching selected ignoring case; fallback to middle element
     try:
-        sel_idx = next(i for i, c in enumerate(categories) if c.lower() == str(selected).strip().lower())
+        sel_idx = next(
+            i
+            for i, c in enumerate(categories)
+            if c.lower() == str(selected).strip().lower()
+        )
     except StopIteration:
         sel_idx = (n - 1) // 2
         # attempt to find 'no change' if exists
@@ -451,11 +486,13 @@ def plot_semi_gauge(categories, colors, selected="No Change", figsize=(3.6, 1.7)
         color="#333",
         lw=7,
         solid_capstyle="round",
-        zorder=6
+        zorder=6,
     )
 
     # Hub
-    hub = Circle((0, 0), radius=inner_radius * 0.35, facecolor="#333", edgecolor="#333", zorder=7)
+    hub = Circle(
+        (0, 0), radius=inner_radius * 0.35, facecolor="#333", edgecolor="#333", zorder=7
+    )
     ax.add_patch(hub)
 
     # Fixed bounds to avoid cropping/tightbbox issues
@@ -486,8 +523,8 @@ def plot_semi_gauge_lr(categories, colors, selected="No Change", figsize=(3.6, 1
 
     # Draw wedges in natural order so leftmost wedge uses colors[0]
     for i in range(n):
-        theta_low = edges[i + 1]   # smaller angle
-        theta_high = edges[i]      # larger angle
+        theta_low = edges[i + 1]  # smaller angle
+        theta_high = edges[i]  # larger angle
         facecolor = colors[i] if i < len(colors) else colors[-1]
         ax.add_patch(
             Wedge(
@@ -499,7 +536,7 @@ def plot_semi_gauge_lr(categories, colors, selected="No Change", figsize=(3.6, 1
                 facecolor=facecolor,
                 edgecolor="#cfcfcf",
                 linewidth=2.0,
-                zorder=2
+                zorder=2,
             )
         )
 
@@ -511,7 +548,7 @@ def plot_semi_gauge_lr(categories, colors, selected="No Change", figsize=(3.6, 1
             [inner_radius * np.sin(a), outer_radius * np.sin(a)],
             color="#cfcfcf",
             lw=1.6,
-            zorder=3
+            zorder=3,
         )
 
     # Labels positioned outside
@@ -525,17 +562,25 @@ def plot_semi_gauge_lr(categories, colors, selected="No Change", figsize=(3.6, 1
         c = np.cos(mid_rad)
         ha = "right" if c < -0.2 else ("left" if c > 0.2 else "center")
         ax.text(
-            x, y, label,
-            ha=ha, va="center",
-            fontsize=11, color="#333",
+            x,
+            y,
+            label,
+            ha=ha,
+            va="center",
+            fontsize=11,
+            color="#333",
             clip_on=False,
-            zorder=10
+            zorder=10,
         )
 
     # Find selected index (match ignoring case)
     sel_idx = None
     try:
-        sel_idx = next(i for i, c in enumerate(categories) if c.lower() == str(selected).strip().lower())
+        sel_idx = next(
+            i
+            for i, c in enumerate(categories)
+            if c.lower() == str(selected).strip().lower()
+        )
     except StopIteration:
         sel_idx = None
 
@@ -553,11 +598,13 @@ def plot_semi_gauge_lr(categories, colors, selected="No Change", figsize=(3.6, 1
         color="#333",
         lw=7,
         solid_capstyle="round",
-        zorder=6
+        zorder=6,
     )
 
     # Hub
-    hub = Circle((0, 0), radius=inner_radius * 0.35, facecolor="#333", edgecolor="#333", zorder=7)
+    hub = Circle(
+        (0, 0), radius=inner_radius * 0.35, facecolor="#333", edgecolor="#333", zorder=7
+    )
     ax.add_patch(hub)
 
     ax.set_aspect("equal")
@@ -583,11 +630,29 @@ def make_matplotlib_scalar_gauge(value: float, title: str = "", figsize=(4.2, 1.
 
     # create 10 steps (low->high). Leftmost = green, rightmost = red.
     categories = [
-        "0–0.1", "0.1–0.2", "0.2–0.3", "0.3–0.4", "0.4–0.5",
-        "0.5–0.6", "0.6–0.7", "0.7–0.8", "0.8–0.9", "0.9–1.0",
+        "0–0.1",
+        "0.1–0.2",
+        "0.2–0.3",
+        "0.3–0.4",
+        "0.4–0.5",
+        "0.5–0.6",
+        "0.6–0.7",
+        "0.7–0.8",
+        "0.8–0.9",
+        "0.9–1.0",
     ]
-    colors = ["#006837", "#1a9850", "#66bd63", "#a6d96a", "#d9ef8b",
-              "#fee08b", "#fdae61", "#f46d43", "#d73027", "#a50026"]  # left (good) -> right (bad)
+    colors = [
+        "#006837",
+        "#1a9850",
+        "#66bd63",
+        "#a6d96a",
+        "#d9ef8b",
+        "#fee08b",
+        "#fdae61",
+        "#f46d43",
+        "#d73027",
+        "#a50026",
+    ]  # left (good) -> right (bad)
 
     n = len(categories)
     # compute index robustly: map v in [0,1] to 0..n-1
@@ -595,12 +660,15 @@ def make_matplotlib_scalar_gauge(value: float, title: str = "", figsize=(4.2, 1.
     selected_label = categories[idx]
 
     # Use the left-to-right plotting helper
-    fig = plot_semi_gauge_lr(categories, colors, selected=selected_label, figsize=figsize)
+    fig = plot_semi_gauge_lr(
+        categories, colors, selected=selected_label, figsize=figsize
+    )
 
     if title:
         fig.suptitle(title, fontsize=9, y=0.98)
 
     return fig
+
 
 # ---------------- New: Responsive grid helper ----------------
 def render_grid(items: list, render_fn, cols_per_row: int = 5):
@@ -615,7 +683,7 @@ def render_grid(items: list, render_fn, cols_per_row: int = 5):
     n = len(items)
     idx = 0
     while idx < n:
-        row = items[idx: idx + cols_per_row]
+        row = items[idx : idx + cols_per_row]
         cols = st.columns(len(row))
         for col, item in zip(cols, row):
             try:
@@ -632,7 +700,7 @@ st.set_page_config(page_title="Changes of LLM Responses", layout="wide")
 st.title("The Summary of Shifts in ChatGPT responses")
 
 # Example usage:
-BACKGROUND_PALETTE = "lavender"   # choose: "teal", "lavender", "sunrise"
+BACKGROUND_PALETTE = "lavender"  # choose: "teal", "lavender", "sunrise"
 st.markdown(get_background_css(BACKGROUND_PALETTE), unsafe_allow_html=True)
 # --- end background injection helper ---
 
@@ -725,14 +793,18 @@ st.markdown(
 # Discover countries
 countries = discover_countries(BASE_DIRS)
 if not countries:
-    st.warning("No countries (subfolders) or top-level JSONs found under the configured base directories.")
+    st.warning(
+        "No countries (subfolders) or top-level JSONs found under the configured base directories."
+    )
     st.stop()
 
 # Top controls: Country, Period, Question + Lang, Buttons
 # NOTE: adjusted to 4 columns so we can align language radio + prev/next in the same top row
 top_cols = st.columns([1.5, 2.2, 1.5, 0.7])
 with top_cols[0]:
-    country = st.selectbox("Select Country", options=countries, index=0, key="country_select")
+    country = st.selectbox(
+        "Select Country", options=countries, index=0, key="country_select"
+    )
 
     # --- Dynamic responses folder selection (based on selected country) ---
     # Compute RESPONSES_BASE (e.g. "./responses/Poland") and RESPONSES_DIR (language subfolder)
@@ -745,8 +817,11 @@ with top_cols[0]:
         # collect available language folders under RESPONSES_BASE (if any)
         available_langs = []
         if RESPONSES_BASE and os.path.isdir(RESPONSES_BASE):
-            available_langs = [d for d in os.listdir(RESPONSES_BASE)
-                               if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
+            available_langs = [
+                d
+                for d in os.listdir(RESPONSES_BASE)
+                if os.path.isdir(os.path.join(RESPONSES_BASE, d))
+            ]
 
         # pick preferred language if present; else prefer 'EN'; else first available; else None
         preferred = PREFERRED_RESPONSE_LANG.get(country)
@@ -766,11 +841,20 @@ with top_cols[0]:
 
         # --- NEW: persist available languages and the chosen/default language into session_state ---
         # so later UI code can render language options specific to the selected country.
-        st.session_state["available_response_langs"] = available_langs  # e.g. ['PL','EN'] or ['IT','EN']
+        st.session_state["available_response_langs"] = (
+            available_langs  # e.g. ['PL','EN'] or ['IT','EN']
+        )
         # ensure a stable 'responses_lang' key exists (used by segmented_control later)
-        if "responses_lang" not in st.session_state or st.session_state["responses_lang"] not in available_langs:
+        if (
+            "responses_lang" not in st.session_state
+            or st.session_state["responses_lang"] not in available_langs
+        ):
             # if chosen_lang exists use it, otherwise prefer existing session_state or fallback to first available
-            st.session_state["responses_lang"] = chosen_lang or st.session_state.get("responses_lang") or (available_langs[0] if available_langs else None)
+            st.session_state["responses_lang"] = (
+                chosen_lang
+                or st.session_state.get("responses_lang")
+                or (available_langs[0] if available_langs else None)
+            )
 
     except Exception:
         # On any error, fallback to top-level responses path to avoid crashes
@@ -784,159 +868,80 @@ with top_cols[0]:
 # compute periods now that `country` is known
 periods = list_periods_for_country(country, BASE_DIRS)
 
-# --- REPLACE the existing `with top_cols[1]:` block with this new robust block ---
-# (This block keeps period/file/topic state authoritative and synchronized.)
-
 with top_cols[1]:
-    # Ensure canonical session keys exist and are initialized
-    if "country_selected" not in st.session_state:
+    # -------------------------
+    # Keep `period_selected` authoritative and in sync with session_state
+    # -------------------------
+    country_selected = st.session_state.get("country_selected")
+    if country_selected != country:
+        # Country changed -> reset stored values to sensible defaults for the new country
         st.session_state["country_selected"] = country
-
-    # Compute available periods for the chosen country (your existing method)
-    periods = sorted(get_periods_for_country(country, BASE_DIRS)) if "get_periods_for_country" in globals() else periods
-
-    # Ensure session state's period_selected exists and is valid
-    if "period_selected" not in st.session_state or st.session_state.get("period_selected") not in periods:
         st.session_state["period_selected"] = periods[0] if periods else None
-
-    # Keep country selection authoritative: if country changed, reset dependent state
-    if st.session_state.get("country_selected") != country:
-        st.session_state["country_selected"] = country
-        # reset period to first available for new country
-        st.session_state["period_selected"] = periods[0] if periods else None
-        st.session_state["file_selectbox"] = None
+        # also reset file/topic pointers to avoid stale selection
         st.session_state["file_index"] = 0
         st.session_state["topic_selected"] = None
 
-    # Helper to collect files and labels for a given (country, period, topic)
-    def _collect_files_and_labels(country_name, period_name, topic_name):
-        """
-        Returns tuple: (file_paths_list, labels_list)
-        file_paths_list: list of filesystem paths to files (preserve order)
-        labels_list: human readable labels (short_label) used in selectbox
-        """
-        files = []
-        # If you already have a helper in your code, replace the below with it.
-        for base in BASE_DIRS:
-            folder = os.path.join(base, country_name, period_name, topic_name) if topic_name else os.path.join(base, country_name, period_name)
-            if os.path.isdir(folder):
-                # prefer json / txt files, sorted for determinism
-                files.extend(sorted(glob(os.path.join(folder, "*.json"))))
-                files.extend(sorted(glob(os.path.join(folder, "*.txt"))))
-        # Deduplicate while preserving order (in case multiple BASE_DIRS)
-        seen = set()
-        files_unique = []
-        for f in files:
-            if f not in seen:
-                files_unique.append(f)
-                seen.add(f)
-        labels = [short_label(fp) for fp in files_unique]
-        return files_unique, labels
+    # compute safe default / index for the selectbox
+    period_default = periods[0] if periods else None
+    period_selected = st.session_state.get("period_selected", period_default)
+    try:
+        period_index = (
+            periods.index(period_selected) if (period_selected in periods) else 0
+        )
+    except Exception:
+        period_index = 0
 
-    # Callback when period is changed: reset file/topic state
+    # callback when the user explicitly changes period in the UI
     def _on_period_change():
-        # Reset question file index to first item after period change
+        # reset view to first file for the new period and clear topic so it will be recomputed
         st.session_state["file_index"] = 0
-        st.session_state["file_selectbox"] = None  # will be set below when we refresh files
-        # Clear topic so it will be re-computed/normalized below
         st.session_state["topic_selected"] = None
 
-    # Render period selectbox (authoritative key is 'period_selected')
-    # Compute a safe index to pass to the widget
-    period_selected_initial = st.session_state.get("period_selected", periods[0] if periods else None)
-    period_index_safe = periods.index(period_selected_initial) if (period_selected_initial in periods) else 0
+    # Render the selectbox (single authoritative key: "period_selected")
+    if periods:
+        period = st.selectbox(
+            "Select Period",
+            options=periods,
+            index=period_index,
+            key="period_selected",  # single authoritative session key
+            on_change=_on_period_change,
+        )
+    else:
+        # no available periods for this country: render a disabled selectbox-like message
+        st.markdown("**Select Period** — _no periods found for this country_")
+        period = None
 
-    period = st.selectbox(
-        "Select Period",
-        options=periods,
-        index=period_index_safe,
-        key="period_selected",
-        on_change=_on_period_change
-    )
-
-    # placeholders for question select + language radio and for the prev/next buttons (kept in top row)
+    # placeholders in the same top row (kept here to maintain layout)
     question_top_placeholder = top_cols[2].empty()
     buttons_top_placeholder = top_cols[3].empty()
 
-    # compute topics for the currently selected period (fresh)
-    topics = list_topics_for_country_period(country, period, BASE_DIRS)
+    # compute topics (subfolders under period) using the selected period
+    topics = (
+        list_topics_for_country_period(country, period, BASE_DIRS) if period else []
+    )
 
-    # ensure topic_selected is canonical and exists in topics
-    if topics:
-        if st.session_state.get("topic_selected") not in topics:
-            st.session_state["topic_selected"] = topics[0]
+    # -------------------------
+    # Normalize / canonicalize topic_selected in session_state
+    # -------------------------
+    # read any previously-stored value
+    topic_selected = st.session_state.get("topic_selected", None)
 
-    # Now collect files and labels for the current (country, period, topic)
-    current_topic = st.session_state.get("topic_selected")
-    files, file_labels = _collect_files_and_labels(country, period, current_topic)
+    if not topics:
+        # no topics available -> ensure we clear any stored topic
+        topic_selected = None
+        st.session_state["topic_selected"] = None
+        topic_index = 0
+    else:
+        # if stored topic is missing / invalid, set canonical one (first in list)
+        if topic_selected not in topics:
+            topic_selected = topics[0]
+            st.session_state["topic_selected"] = topic_selected
 
-    # Ensure session keys for file selection/index exist
-    if "file_selectbox" not in st.session_state:
-        # initialize to first label if available
-        st.session_state["file_selectbox"] = file_labels[0] if file_labels else None
-    if "file_index" not in st.session_state:
-        # attempt to derive index from file_selectbox
-        if st.session_state.get("file_selectbox_widget") in file_labels:
-            st.session_state["file_index"] = file_labels.index(st.session_state.get("file_selectbox_widget"))
-        else:
-            st.session_state["file_index"] = 0
-
-    # Callback when user picks a different file from selectbox
-    def _on_file_change():
-        sel = st.session_state.get("file_selectbox_widget")
-        if sel in file_labels:
-            st.session_state["file_index"] = file_labels.index(sel)
-        else:
-            # safety fallback
-            st.session_state["file_index"] = 0
-
-    # Prev/Next callbacks (update both file_index and file_selectbox)
-    def _on_prev():
-        idx = st.session_state.get("file_index", 0)
-        if idx > 0:
-            idx -= 1
-            st.session_state["file_index"] = idx
-            if file_labels:
-                st.session_state["file_selectbox"] = file_labels[idx]
-
-    def _on_next():
-        idx = st.session_state.get("file_index", 0)
-        if file_labels:
-            if idx < len(file_labels) - 1:
-                idx += 1
-                st.session_state["file_index"] = idx
-                st.session_state["file_selectbox"] = file_labels[idx]
-
-    # Render the question (file) selectbox into the placeholder (keeps it in the top row visually)
-    # Use the canonical session key 'file_selectbox' so other code reads one value everywhere
-    file_index_now = st.session_state.get("file_index", 0)
-    file_index_now = min(file_index_now, max(0, len(file_labels) - 1))  # clamp safely
-
-    # Render selectbox in the reserved placeholder column
-    with question_top_placeholder:
-        if file_labels:
-            st.selectbox(
-                "Select a question",
-                options=file_labels,
-                index=file_index_now,
-                key="file_selectbox",
-                on_change=_on_file_change
-            )
-        else:
-            st.selectbox("Select a question", options=["(no files)"], index=0, key="file_selectbox", disabled=True)
-
-    # Render Prev/Next buttons into the reserved placeholder
-    with buttons_top_placeholder:
-        bcols = st.columns([1, 1])
-        with bcols[0]:
-            st.button("◀ Previous", on_click=_on_prev, key="prev_button")
-        with bcols[1]:
-            st.button("Next ▶", on_click=_on_next, key="next_button")
-
-# after the top-row block, compute (safely) topic_index
-topic_selected = st.session_state.get("topic_selected")
-topic_index = topics.index(topic_selected) if (topic_selected in topics) else 0
-# --- END replacement block ---
+        # compute safe index now that topic_selected is canonical
+        try:
+            topic_index = topics.index(topic_selected)
+        except Exception:
+            topic_index = 0
 
 # ---------------- Insert question placeholder HERE (it will be updated later after files/labels are known) ----------------
 question_placeholder = st.empty()
@@ -951,7 +956,9 @@ metric_kind = st.radio(
 )
 
 # ---------------- Lower row: Metric selector (for Semantic) or placeholder (for Scalar) ----------------
-file_col, _empty_col = st.columns([2, 2])  # keep proportions; right column intentionally empty
+file_col, _empty_col = st.columns(
+    [2, 2]
+)  # keep proportions; right column intentionally empty
 
 # We'll track these variables:
 semantic_container = None
@@ -967,7 +974,9 @@ with file_col:
                 break
 
         if not semantic_container:
-            st.error("No 'Semantic metrics' folder found under the selected period. Please check folder names.")
+            st.error(
+                "No 'Semantic metrics' folder found under the selected period. Please check folder names."
+            )
             st.stop()
 
         # Collect subtopic folders (children of the semantic_container folder)
@@ -982,18 +991,25 @@ with file_col:
         semantic_subtopics = sorted(list(dict.fromkeys(semantic_subtopics)))
 
         if not semantic_subtopics:
-            st.info(f"No semantic subtopics found under `{semantic_container}` for this period.")
+            st.info(
+                f"No semantic subtopics found under `{semantic_container}` for this period."
+            )
             # fallback — keep the container as topic (will show message/no-files)
             topic = semantic_container
         else:
             # Make the widget-backed session key authoritative: "topic_sub_select"
             # Ensure it exists and is valid before creating the selectbox.
-            if "topic_sub_select" not in st.session_state or st.session_state["topic_sub_select"] not in semantic_subtopics:
+            if (
+                "topic_sub_select" not in st.session_state
+                or st.session_state["topic_sub_select"] not in semantic_subtopics
+            ):
                 st.session_state["topic_sub_select"] = semantic_subtopics[0]
 
             # callback when user picks a different metric: update canonical topic and reset file index
             def _on_metric_change():
-                st.session_state["topic_selected"] = st.session_state.get("topic_sub_select", semantic_subtopics[0])
+                st.session_state["topic_selected"] = st.session_state.get(
+                    "topic_sub_select", semantic_subtopics[0]
+                )
                 st.session_state["file_index"] = 0
 
             # Create selectbox using the widget key only. Do NOT compute index from a separate stale key.
@@ -1016,7 +1032,7 @@ with file_col:
                 scalar_folder = t
                 break
         topic = scalar_folder or "Scalar metrics"
-        #st.markdown(f"**Scalar metrics selected:** will show scalar keys from `{topic}` folder for each question.")
+        # st.markdown(f"**Scalar metrics selected:** will show scalar keys from `{topic}` folder for each question.")
 
 # update/reset session state if changed
 if st.session_state.get("country_selected") != country:
@@ -1068,11 +1084,14 @@ else:
         # pick up files directly under topic_dir
         files.extend(sorted(glob(os.path.join(topic_dir, "*.json"))))
         # also pick up files inside any nested folders (New/Old or others)
-        files.extend(sorted(glob(os.path.join(topic_dir, "**", "*.json"), recursive=True)))
+        files.extend(
+            sorted(glob(os.path.join(topic_dir, "**", "*.json"), recursive=True))
+        )
 
     # As an additional fallback, use your existing helper
     if not files:
         files = list_json_files(country, period, topic, BASE_DIRS)
+
 
 # Deduplicate & sort
 # -----------------------
@@ -1084,20 +1103,21 @@ def _extract_q_number_from_label(label):
     """Return integer question number from a label like 'Q12' or 'q3' or None."""
     if not label:
         return None
-    m = re.search(r'(?i)Q(\d{1,4})', str(label))
+    m = re.search(r"(?i)Q(\d{1,4})", str(label))
     if m:
         try:
             return int(m.group(1))
         except Exception:
             return None
     # fallback: any first numeric group
-    m2 = re.search(r'(\d{1,4})', str(label))
+    m2 = re.search(r"(\d{1,4})", str(label))
     if m2:
         try:
             return int(m2.group(1))
         except Exception:
             return None
     return None
+
 
 def dedupe_files_by_display_label(files_list):
     """
@@ -1119,8 +1139,10 @@ def dedupe_files_by_display_label(files_list):
         out.append((p, key))
     return out  # list of (path, display_label)
 
+
 # apply dedupe (preserve first occurrence)
 deduped = dedupe_files_by_display_label(files)
+
 
 # Now sort deduped by numeric Q number if available, else fallback to label string
 def _sort_key(pair):
@@ -1131,13 +1153,16 @@ def _sort_key(pair):
     # fallback: alphabetical order for non-Q-style labels
     return (1, str(label).lower())
 
+
 deduped_sorted = sorted(deduped, key=_sort_key)
 
 # unwrap back to files list
 files = [p for (p, lbl) in deduped_sorted]
 
 if not files:
-    st.info(f"No JSON files found for Country **{country}**, Period **{period}**, Topic **{topic}**.")
+    st.info(
+        f"No JSON files found for Country **{country}**, Period **{period}**, Topic **{topic}**."
+    )
     st.stop()
 
 # Init file_index session key (numeric index)
@@ -1156,12 +1181,10 @@ if empty_labels:
     for i in empty_labels:
         display_labels[i] = labels[i] or f"Q{i+1}"
 
-# --- START: REPLACE THE ENTIRE TOP SELECTION / PERIOD & QUESTION BLOCK WITH THE FOLLOWING ---
-# (This block sets up: Period selectbox, topic normalization, file list & labels,
-#  then a stable question selectbox with Prev/Next buttons and safe session_state handling.)
 
-# Helper: clamp index into valid range
+# ------------------- NEW: centralized helpers for index/label sync -------------------
 def clamp_index(i, n):
+    """Clamp integer index to valid range [0, n-1] (n may be 0)."""
     try:
         i = int(i)
     except Exception:
@@ -1170,99 +1193,56 @@ def clamp_index(i, n):
         return 0
     return max(0, min(i, n - 1))
 
-# Central setter: update numeric index + label together (authoritative)
+
 def set_active_file_index(idx):
-    n = len(display_labels) if display_labels is not None else 0
+    """
+    Authoritative way to change active file.
+    Updates both numeric file_index and file_selectbox label together.
+    """
+    n = len(display_labels)
     new_idx = clamp_index(idx, n)
     st.session_state["file_index"] = new_idx
+    # update the selectbox label so the widget and numeric index are always in sync
     if n:
-        # update label in session state in the same run BEFORE widget instantiation or via rerun
         st.session_state["file_selectbox"] = display_labels[new_idx]
     else:
         st.session_state["file_selectbox"] = ""
 
-# Callback executed when the user chooses a label in the selectbox
-def on_file_select_change():
+
+# Callback: when user chooses a label from the selectbox, update numeric index
+def on_file_select():
     sel = st.session_state.get("file_selectbox", "")
     try:
         idx = display_labels.index(sel)
-    except Exception:
-        # fallback: try to parse a number inside the label (Q1 -> index 0)
-        m = re.search(r'(\d{1,4})', str(sel))
-        if m:
-            idx = max(0, int(m.group(1)) - 1)
-        else:
-            idx = 0
-    st.session_state["file_index"] = clamp_index(idx, len(display_labels))
+    except ValueError:
+        idx = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
+    st.session_state["file_index"] = idx
 
-# Callback when the period changes: reset file/topic state (this is attached to period selectbox)
-def on_period_change():
-    # reset list selection to the first file when period changes
-    st.session_state["file_index"] = 0
-    # Clear label so it will be re-initialized below when we recompute display_labels/files
-    st.session_state["file_selectbox"] = None
-    # Clear topic to force normalization below
-    st.session_state["topic_selected"] = None
 
-# -------------------- Period selectbox (top row) --------------------
-# Use a unique widget key to avoid duplicate-element-key errors, then sync the
-# legacy session_state alias 'period_selected' for the rest of the app.
+# -------------------------------------------------------------------------------
 
-# compute a safe initial index for period widget (use existing session value if present)
-period_selected_initial = st.session_state.get("period_selected", periods[0] if periods else None)
-period_index_safe = periods.index(period_selected_initial) if (period_selected_initial in periods) else 0
-
-# Create the widget with a stable, unique widget key
-period = st.selectbox(
-    "Select Period",
-    options=periods,
-    index=period_index_safe,
-    key="period_selectbox",     # <- changed key (was "period_selected")
-    on_change=on_period_change
+# --- Ensure session_state file_index and file_selectbox are consistent before rendering widgets ---
+# clamp numeric index
+st.session_state["file_index"] = clamp_index(
+    st.session_state.get("file_index", 0), len(display_labels)
 )
-
-# Immediately sync the legacy alias (so existing code that reads
-# st.session_state['period_selected'] continues to work).
-# This assignment is safe: it only writes a session-state entry, it doesn't create a widget.
-st.session_state["period_selected"] = st.session_state.get("period_selectbox", period_selected_initial)
-
-
-# placeholders reserved in the top row (keep your layout)
-question_top_placeholder = top_cols[2].empty()
-buttons_top_placeholder = top_cols[3].empty()
-
-# recompute topics for the selected period (fresh)
-topics = list_topics_for_country_period(country, period, BASE_DIRS)
-
-# normalize topic_selected to a canonical value
-if topics:
-    if st.session_state.get("topic_selected") not in topics:
-        st.session_state["topic_selected"] = topics[0]
-
-# Now collect files and labels depending on country/period/topic
-current_topic = st.session_state.get("topic_selected")
-files, display_labels = _collect_files_and_labels(country, period, current_topic)
-
-# Ensure display_labels is a list (safety)
-if display_labels is None:
-    display_labels = []
-
-# Initialize session_state keys BEFORE we create the selectbox widget.
-# Do not assign these keys after the widget is created.
-if "file_index" not in st.session_state:
-    st.session_state["file_index"] = 0
-
-# Clamp index into range
-st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0), len(display_labels) if display_labels else 0)
-
-# Initialize the label if missing or invalid
-if "file_selectbox" not in st.session_state or st.session_state.get("file_selectbox") not in display_labels:
+# ensure label exists and matches index
+if (
+    "file_selectbox" not in st.session_state
+    or st.session_state.get("file_selectbox") not in display_labels
+):
     if display_labels:
-        st.session_state["file_selectbox"] = display_labels[st.session_state["file_index"]]
+        st.session_state["file_selectbox"] = display_labels[
+            st.session_state["file_index"]
+        ]
     else:
         st.session_state["file_selectbox"] = ""
 
-# -------------------- Prev / Next buttons (rendered into placeholder) --------------------
+# ---------------------------
+# IMPORTANT: buttons first, then selectbox
+# ---------------------------
+
+# Buttons occupy rightmost small column (buttons_top_placeholder)
 with buttons_top_placeholder.container():
     prev_col, next_col = st.columns([0.6, 1])
     pad_px = 6
@@ -1270,50 +1250,78 @@ with buttons_top_placeholder.container():
     with prev_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
         if st.button("◀ Previous", key="prev_file"):
+            # use centralized setter so the selectbox label updates immediately too
             set_active_file_index(st.session_state.get("file_index", 0) - 1)
         st.markdown("</div>", unsafe_allow_html=True)
+    # with spacer_col:
+    #     st.write("")
     with next_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
         if st.button("Next ▶", key="next_file"):
+            # use centralized setter so the selectbox label updates immediately too
             set_active_file_index(st.session_state.get("file_index", 0) + 1)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# -------------------- The Question selectbox + Question-language control --------------------
+
+# Left container (question + language) goes into question_top_placeholder
 with question_top_placeholder.container():
+    # create two inner columns: selectbox (bigger) + language radio (narrow)
     inner_left, inner_right = st.columns([3, 2])
-
-    # LEFT: selectbox (this creates the widget key 'file_selectbox' exactly once)
     with inner_left:
-        if display_labels:
-            # compute index to pass to the widget
-            widget_index = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
-            # create the selectbox; its key is 'file_selectbox' (we already ensured session_state key exists)
-            st.selectbox(
-                "Select a question",
-                options=display_labels,
-                index=widget_index,
-                key="file_selectbox",
-                on_change=on_file_select_change,
-            )
-        else:
-            st.selectbox("Select a question", options=["(no files)"], index=0, key="file_selectbox", disabled=True)
-
-    # RIGHT: question language radio (keeps previous logic)
+        # NOTE: we rely on st.session_state["file_selectbox"] being set earlier (buttons or initialization)
+        selected_label = st.selectbox(
+            "Select a question",
+            options=display_labels,  # <- show compact Qn labels
+            key="file_selectbox",
+            on_change=on_file_select,
+        )
     with inner_right:
+        # determine candidate local language code for the selected country
+        # PREFERRED_RESPONSE_LANG is a mapping you already use elsewhere (e.g. {"Poland":"PL", "Italy":"IT"})
+        # If you don't have that mapping in your code, add it near CONFIG, e.g.:
+        # PREFERRED_RESPONSE_LANG = {"Poland":"PL", "Italy":"IT"}
         try:
-            country_local = PREFERRED_RESPONSE_LANG.get(country) if 'PREFERRED_RESPONSE_LANG' in globals() else None
+            country_local = (
+                PREFERRED_RESPONSE_LANG.get(country)
+                if "PREFERRED_RESPONSE_LANG" in globals()
+                else None
+            )
         except Exception:
             country_local = None
+
+        # Build the question-language options: local language first (if known), then EN
         qlang_options = []
         if country_local:
             qlang_options.append(country_local.upper())
         if "EN" not in qlang_options:
             qlang_options.append("EN")
+
+        # Guarantee there is at least one option
         if not qlang_options:
             qlang_options = ["EN"]
-        # init the session-state entry if missing
-        if "question_lang" not in st.session_state or st.session_state.get("question_lang") not in qlang_options:
+
+        # Ensure session_state["question_lang"] exists and is valid for this set of options
+        if (
+            "question_lang" not in st.session_state
+            or st.session_state.get("question_lang") not in qlang_options
+        ):
+            # prefer local if available, else EN
             st.session_state["question_lang"] = qlang_options[0]
+
+        st.markdown(
+            "<div style='display:flex; align-items:center; height:100%; padding-left:6px; padding-right:6px;'>",
+            unsafe_allow_html=True,
+        )
+
+        # Create a radio control for question language — rely on session_state for the value
+        # We intentionally DO NOT pass an `index` argument; the widget reads/writes
+        # st.session_state["question_lang"] which we initialized earlier.
+        st.markdown(
+            "<div style='display:flex; align-items:center; height:100%; padding-left:6px; padding-right:6px;'>",
+            unsafe_allow_html=True,
+        )
+        # Always use a radio box (not segmented_control)
+        # The key is "question_lang" so the selected language persists in session_state.
         st.radio(
             "Question language",
             options=qlang_options,
@@ -1322,21 +1330,11 @@ with question_top_placeholder.container():
             label_visibility="collapsed",
         )
 
-# Downstream: authoritative numeric index (clamped & stored)
-file_index = clamp_index(st.session_state.get("file_index", 0), len(files) if files else 0)
-st.session_state["file_index"] = file_index
-
-# Resolve selected file path / name for the rest of the app
-if files and len(files) > 0:
-    selected_path = files[file_index]
-    selected_name = os.path.basename(selected_path)
-else:
-    selected_path = None
-    selected_name = None
-
-# Resolve selected_label_for_q for downstream code
-selected_label_for_q = display_labels[file_index] if display_labels else None
-# --- END: REPLACEMENT BLOCK ---
+# Resolve selection (use authoritative numeric index from session_state)
+file_index = clamp_index(st.session_state.get("file_index", 0), len(files))
+st.session_state["file_index"] = file_index  # ensure stored
+selected_path = files[file_index]
+selected_name = os.path.basename(selected_path)
 
 
 # ---------------- UPDATE the question placeholder (placed earlier) based on the selected_label ----------------
@@ -1350,7 +1348,7 @@ selected_label_for_q = display_labels[file_index] if display_labels else None
 question_key = None
 if selected_label_for_q:
     # 1) look for 'Q' followed by digits (e.g. Q1, q12)
-    m_q = re.search(r'(?i)Q(\d{1,3})', selected_label_for_q)
+    m_q = re.search(r"(?i)Q(\d{1,3})", selected_label_for_q)
     n = None
     if m_q:
         try:
@@ -1359,7 +1357,7 @@ if selected_label_for_q:
             n = None
     else:
         # 2) fallback: find first digit group (e.g. '1' in 'Q1_change...', or '2025' if numeric)
-        m_d = re.search(r'(\d{1,3})', selected_label_for_q)
+        m_d = re.search(r"(\d{1,3})", selected_label_for_q)
         if m_d:
             try:
                 n = int(m_d.group(1))
@@ -1377,7 +1375,7 @@ if selected_label_for_q:
         # if not found, try to match by numeric content of existing keys
         if not found:
             for k in _questions.keys():
-                m_k = re.search(r'(\d{1,3})', str(k))
+                m_k = re.search(r"(\d{1,3})", str(k))
                 if m_k:
                     try:
                         if int(m_k.group(1)) == n:
@@ -1395,30 +1393,32 @@ if question_key and isinstance(_questions, dict):
     raw = _questions.get(question_key)
     if isinstance(raw, dict):
         # prefer user's selected language, fallback to EN, fallback to any available string
-        question_text = raw.get(selected_lang) or raw.get("EN") or next(iter(raw.values()), None)
+        question_text = (
+            raw.get(selected_lang) or raw.get("EN") or next(iter(raw.values()), None)
+        )
     else:
         # legacy style: value is just a string
         question_text = raw
 
 QUESTION_PLACEHOLDER_HEIGHT = 105
 if question_text:
-    q_html = f'''
+    q_html = f"""
     <div class="placeholder-card" tabindex="0">
       <div class="placeholder-body" style="height:{QUESTION_PLACEHOLDER_HEIGHT}px; overflow:auto; text-align:center; font-size:21px; display:flex; align-items:center; justify-content:center; padding:12px; margin-bottom:18px">
         {escape(str(question_text))}
       </div>
     </div>
-    '''
+    """
     question_placeholder.markdown(q_html, unsafe_allow_html=True)
 else:
     # keep existing fallback behaviour (if any); simple fallback example:
-    fallback_html = f'''
+    fallback_html = f"""
     <div class="placeholder-card" tabindex="0">
       <div class="placeholder-body" style="height:{QUESTION_PLACEHOLDER_HEIGHT}px; overflow:auto; text-align:center; font-size:21px; display:flex; align-items:center; justify-content:center; padding:12px; color:#666;">
         (no question text)
       </div>
     </div>
-    '''
+    """
     question_placeholder.markdown(fallback_html, unsafe_allow_html=True)
 # ---------------- end question placeholder update ----------------
 
@@ -1430,7 +1430,7 @@ except Exception as e:
     st.stop()
 
 # ---------------- Display outcomes ----------------
-#st.subheader("Summary")
+# st.subheader("Summary")
 
 # Map for empathy overall_change
 _overall_change_map = {
@@ -1494,11 +1494,11 @@ if metric_kind == "Scalar Metric":
             if lbl == display_label:
                 return p
         # fallback: match by first numeric group in label (e.g. 6 -> Q6)
-        m = re.search(r'(\d{1,4})', str(display_label))
+        m = re.search(r"(\d{1,4})", str(display_label))
         n = int(m.group(1)) if m else None
         if n is not None:
             for p in paths:
-                m2 = re.search(r'(\d{1,4})', os.path.basename(p))
+                m2 = re.search(r"(\d{1,4})", os.path.basename(p))
                 if m2 and int(m2.group(1)) == n:
                     return p
         return None
@@ -1576,7 +1576,14 @@ if metric_kind == "Scalar Metric":
             try:
                 fig = make_matplotlib_scalar_gauge(val, title="", figsize=(4.2, 1.8))
                 buf = BytesIO()
-                fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.04, dpi=120, transparent=True)
+                fig.savefig(
+                    buf,
+                    format="png",
+                    bbox_inches="tight",
+                    pad_inches=0.04,
+                    dpi=120,
+                    transparent=True,
+                )
                 plt.close(fig)
                 buf.seek(0)
                 img_bytes = buf.getvalue()
@@ -1594,26 +1601,39 @@ if metric_kind == "Scalar Metric":
             # </div>
             # '''
             # Gauge plot for Scalar Metric
-            card_html = f'''
+            card_html = f"""
             <div class="placeholder-card" tabindex="0">
               <div class="placeholder-body" style="padding:6px; height:260px; display:flex; flex-direction:column; gap:6px;">
                 <div><p></p></div>
                 <div style="flex:1; display:block; width:100%;">{img_html}</div>
               </div>
             </div>
-            '''
+            """
             st.markdown(card_html, unsafe_allow_html=True)
 
     # ---------------- New: load explanations for scalar metrics ----------------
     # Try to load explanations map. Prefer custom loader if present, otherwise try load_json file.
     scalar_explanations = {}
     try:
-        if "load_scalar_explanations" in globals() and callable(globals().get("load_scalar_explanations")):
-            scalar_explanations = load_scalar_explanations("./scalar_explanations/explanations.json") or {}
+        if "load_scalar_explanations" in globals() and callable(
+            globals().get("load_scalar_explanations")
+        ):
+            scalar_explanations = (
+                load_scalar_explanations("./scalar_explanations/explanations.json")
+                or {}
+            )
         else:
             # fallback: attempt to load via load_json from standard path
-            expl_path = os.path.join(os.path.dirname(__file__) if "__file__" in globals() else ".", "scalar_explanations", "explanations.json")
-            if os.path.exists(expl_path) and "load_json" in globals() and callable(globals().get("load_json")):
+            expl_path = os.path.join(
+                os.path.dirname(__file__) if "__file__" in globals() else ".",
+                "scalar_explanations",
+                "explanations.json",
+            )
+            if (
+                os.path.exists(expl_path)
+                and "load_json" in globals()
+                and callable(globals().get("load_json"))
+            ):
                 scalar_explanations = load_json(expl_path) or {}
     except Exception:
         scalar_explanations = {}
@@ -1636,7 +1656,7 @@ if metric_kind == "Scalar Metric":
             if kk in scalar_explanations and scalar_explanations[kk]:
                 return scalar_explanations[kk]
         # fallback: strip qN_ prefix (e.g., "q1_hallucination_rate" -> "hallucination_rate")
-        k2 = re.sub(r'^[qQ]\d+[_-]?', '', k)
+        k2 = re.sub(r"^[qQ]\d+[_-]?", "", k)
         if k2 and k2.lower() in scalar_explanations and scalar_explanations[k2.lower()]:
             return scalar_explanations[k2.lower()]
         # last resort: search for a key that contains the metric token
@@ -1653,8 +1673,12 @@ if metric_kind == "Scalar Metric":
     # Prepare stable per-side item lists padded/truncated to RESERVED_SLOTS
     old_items = list(old_data.items()) if isinstance(old_data, dict) else []
     new_items = list(new_data.items()) if isinstance(new_data, dict) else []
-    old_items = old_items[:RESERVED_SLOTS] + [(None, None)] * max(0, RESERVED_SLOTS - len(old_items))
-    new_items = new_items[:RESERVED_SLOTS] + [(None, None)] * max(0, RESERVED_SLOTS - len(new_items))
+    old_items = old_items[:RESERVED_SLOTS] + [(None, None)] * max(
+        0, RESERVED_SLOTS - len(old_items)
+    )
+    new_items = new_items[:RESERVED_SLOTS] + [(None, None)] * max(
+        0, RESERVED_SLOTS - len(new_items)
+    )
 
     # Render headers above the three aligned columns (explanation | Old | New)
     hdr_cols = st.columns([0.9, 1, 1])
@@ -1678,7 +1702,11 @@ if metric_kind == "Scalar Metric":
         elif k_new:
             metric_key_for_expl = k_new
 
-        expl_text = get_explanation_for_label(metric_key_for_expl) if metric_key_for_expl else None
+        expl_text = (
+            get_explanation_for_label(metric_key_for_expl)
+            if metric_key_for_expl
+            else None
+        )
 
         # create three aligned columns for this row (widths match header columns)
         expl_col, old_col, new_col = st.columns([0.9, 1, 1])
@@ -1690,7 +1718,12 @@ if metric_kind == "Scalar Metric":
         with expl_col:
             if metric_key_for_expl:
                 # friendly label for display (if you want metric key visible above explanation)
-                friendly_label = escape(str(metric_key_for_expl)).replace("_", " ").replace("-", " ").title()
+                friendly_label = (
+                    escape(str(metric_key_for_expl))
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .title()
+                )
 
                 if expl_text:
                     text_str = str(expl_text)
@@ -1751,11 +1784,14 @@ else:
         verdict_html = (
             '<div class="hover-card" tabindex="0">'
             f'<div class="card-body" style="max-height:{MAX_HEIGHT_PX}px; overflow:auto; margin-bottom:4px;">'
-            f'{escape(verdict_val)}'
-            '</div>'
-            '</div>'
+            f"{escape(verdict_val)}"
+            "</div>"
+            "</div>"
         )
-        st.markdown("<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{ padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>", unsafe_allow_html=True)
+        st.markdown(
+            "<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{ padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>",
+            unsafe_allow_html=True,
+        )
         st.markdown(verdict_html, unsafe_allow_html=True)
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
@@ -1776,7 +1812,15 @@ else:
             "Moderately Declined",
             "Significantly Declined",
         ]
-        colors7 = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7 = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         # Two-column layout: first column holds the overall gauge, second reserved
         cols = st.columns(2)
@@ -1789,23 +1833,41 @@ else:
                         '<div style="height:56px; display:flex; align-items:center; justify-content:center; '
                         'padding:6px 10px; box-sizing:border-box; text-align:center;">'
                         '<div style="font-weight:700; line-height:1.15; word-break:break-word; max-width:100%;">'
-                        'Overall change'
-                        '</div>'
-                        '</div>'
+                        "Overall change"
+                        "</div>"
+                        "</div>"
                     )
 
                     # Subtitle: show the raw categorical label under header (centered)
-                    subtitle_html = f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{escape(str(overall_change_raw))}</div>' if overall_change_raw is not None else ''
+                    subtitle_html = (
+                        f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{escape(str(overall_change_raw))}</div>'
+                        if overall_change_raw is not None
+                        else ""
+                    )
 
                     # Indicator (gauge) or placeholder if missing
                     if mapped_val is not None:
                         # pick selected category (fall back to "No Change")
-                        selected_category = next((c for c in categories7 if c.lower() == oc_norm), "No Change")
+                        selected_category = next(
+                            (c for c in categories7 if c.lower() == oc_norm),
+                            "No Change",
+                        )
 
                         # Use a slightly wider figsize to keep labels readable
-                        fig = plot_semi_gauge(categories7, colors7, selected=selected_category, figsize=(6.0, 2.8))
+                        fig = plot_semi_gauge(
+                            categories7,
+                            colors7,
+                            selected=selected_category,
+                            figsize=(6.0, 2.8),
+                        )
                         buf = BytesIO()
-                        fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.02, transparent=True)
+                        fig.savefig(
+                            buf,
+                            format="png",
+                            bbox_inches="tight",
+                            pad_inches=0.02,
+                            transparent=True,
+                        )
                         plt.close(fig)
                         buf.seek(0)
                         img_data = buf.getvalue()
@@ -1816,13 +1878,12 @@ else:
 
                     # Build the hover-card with header + subtitle + indicator
                     emp_html = (
-                            '<div class="placeholder-card" tabindex="0">'
-                            '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
-                            + header_html
-                            #+ subtitle_html
-                            + indicator_html +
-                            '</div>'
-                            '</div>'
+                        '<div class="placeholder-card" tabindex="0">'
+                        '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
+                        + header_html
+                        # + subtitle_html
+                        + indicator_html + "</div>"
+                        "</div>"
                     )
                     st.markdown(emp_html, unsafe_allow_html=True)
 
@@ -1831,23 +1892,26 @@ else:
                     placeholder_html = (
                         '<div class="placeholder-card" tabindex="0">'
                         '<div class="placeholder-body" style="height:290px; color:#999;">'
-                        'Reserved'
-                        '</div>'
-                        '</div>'
+                        "Reserved"
+                        "</div>"
+                        "</div>"
                     )
                     st.markdown(placeholder_html, unsafe_allow_html=True)
 
     # Logical Consistency topic: render a responsive grid of semi-circular gauges (one per metric)
     elif topic == "Logical Consistency and Argumentation Structure":
         verdict_val = data.get("verdict", "—")
-        st.markdown("<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{margin-bottom:14px; padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>", unsafe_allow_html=True)
-        verdict_block = f'''
+        st.markdown(
+            "<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{margin-bottom:14px; padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>",
+            unsafe_allow_html=True,
+        )
+        verdict_block = f"""
         <div class="hover-card" tabindex="0">
           <div class="card-body" style="max-height:120px; overflow:auto;">
             {escape(verdict_val)}
           </div>
         </div>
-        '''
+        """
         st.markdown(verdict_block, unsafe_allow_html=True)
 
         change_analysis = data.get("change_analysis", {}) or {}
@@ -1862,30 +1926,89 @@ else:
             "Moderately Declined",
             "Significantly Declined",
         ]
-        colors7 = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7 = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         # 3-state categories follow the same semantic order (improved -> similar -> declined)
-        categories_3_structure = ["More Organized", "Similar Organization", "Less Organized"]
-        categories_3_consistency = ["More Consistent", "Similar Consistency", "Less Consistent"]
-        categories_3_reasoning = ["More Sophisticated", "Similar Sophistication", "Less Sophisticated"]
-        categories_3_fallacy = ["Fewer Fallacies", "Similar Fallacy Level", "More Fallacies"]
+        categories_3_structure = [
+            "More Organized",
+            "Similar Organization",
+            "Less Organized",
+        ]
+        categories_3_consistency = [
+            "More Consistent",
+            "Similar Consistency",
+            "Less Consistent",
+        ]
+        categories_3_reasoning = [
+            "More Sophisticated",
+            "Similar Sophistication",
+            "Less Sophisticated",
+        ]
+        categories_3_fallacy = [
+            "Fewer Fallacies",
+            "Similar Fallacy Level",
+            "More Fallacies",
+        ]
 
         colors_3 = ["#1a9850", "#cccccc", "#d73027"]  # green -> neutral -> red
 
         # Fetch raw values
-        overall_raw = change_analysis.get("overall_logical_improvement", data.get("overall_logical_improvement", None))
-        struct_raw = change_analysis.get("structure_change", data.get("structure_change", None))
-        consistency_raw = change_analysis.get("consistency_change", data.get("consistency_change", None))
-        reasoning_raw = change_analysis.get("reasoning_sophistication_change", data.get("reasoning_sophistication_change", None))
-        fallacy_raw = change_analysis.get("fallacy_reduction", data.get("fallacy_reduction", None))
+        overall_raw = change_analysis.get(
+            "overall_logical_improvement", data.get("overall_logical_improvement", None)
+        )
+        struct_raw = change_analysis.get(
+            "structure_change", data.get("structure_change", None)
+        )
+        consistency_raw = change_analysis.get(
+            "consistency_change", data.get("consistency_change", None)
+        )
+        reasoning_raw = change_analysis.get(
+            "reasoning_sophistication_change",
+            data.get("reasoning_sophistication_change", None),
+        )
+        fallacy_raw = change_analysis.get(
+            "fallacy_reduction", data.get("fallacy_reduction", None)
+        )
 
         # Items to render as gauge cards
         items = [
             ("Overall change", overall_raw, categories7, colors7, "No Change"),
-            ("Structure change", struct_raw, categories_3_structure, colors_3, "Similar Organization"),
-            ("Consistency change", consistency_raw, categories_3_consistency, colors_3, "Similar Consistency"),
-            ("Reasoning sophistication change", reasoning_raw, categories_3_reasoning, colors_3, "Similar Sophistication"),
-            ("Fallacy reduction", fallacy_raw, categories_3_fallacy, colors_3, "Similar Fallacy Level"),
+            (
+                "Structure change",
+                struct_raw,
+                categories_3_structure,
+                colors_3,
+                "Similar Organization",
+            ),
+            (
+                "Consistency change",
+                consistency_raw,
+                categories_3_consistency,
+                colors_3,
+                "Similar Consistency",
+            ),
+            (
+                "Reasoning sophistication change",
+                reasoning_raw,
+                categories_3_reasoning,
+                colors_3,
+                "Similar Sophistication",
+            ),
+            (
+                "Fallacy reduction",
+                fallacy_raw,
+                categories_3_fallacy,
+                colors_3,
+                "Similar Fallacy Level",
+            ),
         ]
 
         # Render using the responsive grid helper (cols_per_row=5 keeps original one-row look on wide screens)
@@ -1894,7 +2017,7 @@ else:
             with col:
                 header_html = f'<div style="font-weight:700; margin-bottom:6px; text-align:center;">{escape(label_text)}</div>'
                 raw_disp = escape(str(raw_val)) if raw_val is not None else "—"
-                #header_html += f'<div style="color:#222; margin-bottom:6px; text-align:center;"><em>{raw_disp}</em></div>'
+                # header_html += f'<div style="color:#222; margin-bottom:6px; text-align:center;"><em>{raw_disp}</em></div>'
 
                 if raw_val is None:
                     indicator_html = '<div style="height:140px; display:flex; align-items:center; justify-content:center; color:#777;">(no data)</div>'
@@ -1909,13 +2032,23 @@ else:
                     if sel is None:
                         sel = default_label
                     figsize = (3.6, 1.6) if len(cats) == 3 else (4.8, 2.2)
-                    fig = plot_semi_gauge(cats, cols_colors, selected=sel, figsize=figsize)
+                    fig = plot_semi_gauge(
+                        cats, cols_colors, selected=sel, figsize=figsize
+                    )
                     buf = BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.02, transparent=True)
+                    fig.savefig(
+                        buf,
+                        format="png",
+                        bbox_inches="tight",
+                        pad_inches=0.02,
+                        transparent=True,
+                    )
                     plt.close(fig)
                     buf.seek(0)
                     img_data = buf.getvalue()
-                    data_uri = f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    data_uri = (
+                        f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    )
                     indicator_html = f'<div style="margin-top:30px;"><img src="{data_uri}" style="width:100%; max-width:360px; display:block; margin:0 auto;" /></div>'
 
                 card_html = f"""
@@ -1938,7 +2071,15 @@ else:
         # but since we've created gauges for the five metrics, we won't duplicate them below again.
         # However we still render other auxiliary metric rows using the earlier render_metric_row helper if present.
         # For the rest of the change_analysis keys, we keep the previous behaviour (small segment bars).
-        def render_metric_row(label, raw_value, mapping_dict, target_width=190, seg_height=18, gap=6, col_ratios=(6,11)):
+        def render_metric_row(
+            label,
+            raw_value,
+            mapping_dict,
+            target_width=190,
+            seg_height=18,
+            gap=6,
+            col_ratios=(6, 11),
+        ):
             raw = raw_value if raw_value is not None else "—"
             raw_escaped = escape(str(raw))
 
@@ -1946,8 +2087,10 @@ else:
             mapped = mapping_dict.get(norm, None)
 
             left_col, right_col = st.columns(list(col_ratios))
-            label_html = f'<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' \
-                         f'<strong>{escape(str(label))}:</strong>&nbsp;{raw_escaped}</div>'
+            label_html = (
+                f'<div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'
+                f"<strong>{escape(str(label))}:</strong>&nbsp;{raw_escaped}</div>"
+            )
 
             with left_col:
                 st.markdown(label_html, unsafe_allow_html=True)
@@ -1960,7 +2103,15 @@ else:
                 if max(mapping_dict.values()) >= 3 or min(mapping_dict.values()) <= -3:
                     n_segments = 7
                     active_idx = int(mapped) + 3
-                    colors = ["#d73027", "#fc8d59", "#fee08b", "#cccccc", "#d9ef8b", "#91cf60", "#1a9850"]
+                    colors = [
+                        "#d73027",
+                        "#fc8d59",
+                        "#fee08b",
+                        "#cccccc",
+                        "#d9ef8b",
+                        "#91cf60",
+                        "#1a9850",
+                    ]
                 else:
                     n_segments = 3
                     active_idx = int(mapped) + 1
@@ -1975,7 +2126,7 @@ else:
                     f'<div style="display:flex; align-items:center; justify-content:left;">'
                     f'<img src="{data_uri}" alt="indicator" '
                     f'style="width:{target_width}px; height:{seg_height + 6}px; display:block;" />'
-                    f'</div>'
+                    f"</div>"
                 )
                 st.markdown(img_html, unsafe_allow_html=True)
 
@@ -1990,13 +2141,13 @@ else:
             unsafe_allow_html=True,
         )
 
-        verdict_block = f'''
+        verdict_block = f"""
         <div class="hover-card" tabindex="0">
           <div class="card-body" style="max-height:120px; overflow:auto;">
             {escape(verdict_val)}
           </div>
         </div>
-        '''
+        """
         st.markdown(verdict_block, unsafe_allow_html=True)
 
         change_analysis = data.get("change_analysis", {}) or {}
@@ -2011,20 +2162,49 @@ else:
             "Moderately Less Relevant",
             "Significantly Less Relevant",
         ]
-        colors7_country = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7_country = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         # 3-state categories for localization quality
-        categories_3_localization = ["Better Localized", "Similar Localization", "Worse Localized"]
+        categories_3_localization = [
+            "Better Localized",
+            "Similar Localization",
+            "Worse Localized",
+        ]
         colors_3 = ["#1a9850", "#cccccc", "#d73027"]
 
         # Fetch raw values (try both top-level keys and within change_analysis)
-        overall_raw = change_analysis.get("overall_poland_relevance_change", data.get("overall_poland_relevance_change", None))
-        localization_raw = change_analysis.get("localization_quality_change", data.get("localization_quality_change", None))
+        overall_raw = change_analysis.get(
+            "overall_poland_relevance_change",
+            data.get("overall_poland_relevance_change", None),
+        )
+        localization_raw = change_analysis.get(
+            "localization_quality_change", data.get("localization_quality_change", None)
+        )
 
         # Items to render
         items_country = [
-            ("Overall Poland relevance change", overall_raw, categories7_country, colors7_country, "No Change"),
-            ("Localization quality change", localization_raw, categories_3_localization, colors_3, "Similar Localization"),
+            (
+                "Overall Poland relevance change",
+                overall_raw,
+                categories7_country,
+                colors7_country,
+                "No Change",
+            ),
+            (
+                "Localization quality change",
+                localization_raw,
+                categories_3_localization,
+                colors_3,
+                "Similar Localization",
+            ),
         ]
 
         def render_country_gauge(col, item):
@@ -2035,11 +2215,11 @@ else:
                     '<div style="height:56px; display:flex; align-items:center; justify-content:center; '
                     'padding:6px 10px; box-sizing:border-box; text-align:center;">'
                     f'<div style="font-weight:700; line-height:1.15; word-break:break-word; max-width:100%;">{escape(label_text)}</div>'
-                    '</div>'
+                    "</div>"
                 )
 
                 raw_disp = escape(str(raw_val)) if raw_val is not None else "—"
-                #subtitle_html = f'<div style="color:#222; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>' if raw_val is not None else ''
+                # subtitle_html = f'<div style="color:#222; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>' if raw_val is not None else ''
 
                 # Indicator area: compute selection & draw gauge
                 if raw_val is None:
@@ -2063,26 +2243,35 @@ else:
                         figsize = (5.6, 3.2)
                         max_w = 520
 
-                    fig = plot_semi_gauge(cats, cols_colors, selected=sel, figsize=figsize)
+                    fig = plot_semi_gauge(
+                        cats, cols_colors, selected=sel, figsize=figsize
+                    )
                     buf = BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.02, transparent=True)
+                    fig.savefig(
+                        buf,
+                        format="png",
+                        bbox_inches="tight",
+                        pad_inches=0.02,
+                        transparent=True,
+                    )
                     plt.close(fig)
                     buf.seek(0)
                     img_data = buf.getvalue()
-                    data_uri = f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    data_uri = (
+                        f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    )
                     # small top margin so the image doesn't touch the header
                     indicator_html = f'<div style="margin-top:8px;"><img src="{data_uri}" style="width:95%; max-width:{max_w}px; display:block; margin:0 auto;" /></div>'
 
                 # Card HTML: ensure body aligns content from top so header always remains at the same level
                 # NOTE: no leading newline or leading spaces in the HTML string -> prevents markdown turning it into code block
                 card_html = (
-                        '<div class="placeholder-card" tabindex="0">'
-                        '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
-                        + header_html
-                        #+ subtitle_html
-                        + indicator_html +
-                        '</div>'
-                        '</div>'
+                    '<div class="placeholder-card" tabindex="0">'
+                    '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
+                    + header_html
+                    # + subtitle_html
+                    + indicator_html + "</div>"
+                    "</div>"
                 )
                 st.markdown(card_html, unsafe_allow_html=True)
 
@@ -2091,7 +2280,10 @@ else:
 
     elif topic == "Political views and orientations":
         verdict_val = data.get("verdict", "—")
-        st.markdown("<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{margin-bottom:14px; padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>", unsafe_allow_html=True)
+        st.markdown(
+            "<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{margin-bottom:14px; padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>",
+            unsafe_allow_html=True,
+        )
         verdict_block = f'<div class="hover-card" tabindex="0"><div class="card-body" style="max-height:120px; overflow:auto;">{escape(verdict_val)}</div></div>'
         st.markdown(verdict_block, unsafe_allow_html=True)
 
@@ -2111,8 +2303,16 @@ else:
             "Complex Change",
         ]
         colors_orientation = [
-            "#1a9850", "#66bd63", "#a6d96a", "#ffffbf",
-            "#fdae61", "#f46d43", "#d73027", "#cccccc", "#74a9cf", "#9c86c0"
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+            "#cccccc",
+            "#74a9cf",
+            "#9c86c0",
         ]
 
         # Intensity change
@@ -2126,19 +2326,47 @@ else:
         colors_intensity = ["#d73027", "#74a9cf", "#ffffbf", "#cccccc", "#1a9850"]
 
         # Neutrality change
-        categories_neutrality = ["Less Neutral", "Same Neutrality Level", "More Neutral"]
+        categories_neutrality = [
+            "Less Neutral",
+            "Same Neutrality Level",
+            "More Neutral",
+        ]
         colors_neutrality = ["#d73027", "#ffffbf", "#1a9850"]
 
         # Fetch raw values
-        orientation_raw = change_analysis.get("orientation_shift", data.get("orientation_shift", None))
-        intensity_raw = change_analysis.get("intensity_change", data.get("intensity_change", None))
-        neutrality_raw = change_analysis.get("neutrality_change", data.get("neutrality_change", None))
+        orientation_raw = change_analysis.get(
+            "orientation_shift", data.get("orientation_shift", None)
+        )
+        intensity_raw = change_analysis.get(
+            "intensity_change", data.get("intensity_change", None)
+        )
+        neutrality_raw = change_analysis.get(
+            "neutrality_change", data.get("neutrality_change", None)
+        )
 
         # Items to render
         items = [
-            ("Orientation shift", orientation_raw, categories_orientation, colors_orientation, "No Change"),
-            ("Intensity change", intensity_raw, categories_intensity, colors_intensity, "Same Level"),
-            ("Neutrality change", neutrality_raw, categories_neutrality, colors_neutrality, "Same Neutrality Level"),
+            (
+                "Orientation shift",
+                orientation_raw,
+                categories_orientation,
+                colors_orientation,
+                "No Change",
+            ),
+            (
+                "Intensity change",
+                intensity_raw,
+                categories_intensity,
+                colors_intensity,
+                "Same Level",
+            ),
+            (
+                "Neutrality change",
+                neutrality_raw,
+                categories_neutrality,
+                colors_neutrality,
+                "Same Neutrality Level",
+            ),
         ]
 
         def render_political_card(col, item):
@@ -2149,12 +2377,16 @@ else:
                     '<div style="height:56px; display:flex; align-items:center; justify-content:center; '
                     'padding:6px 10px; box-sizing:border-box; text-align:center;">'
                     f'<div style="font-weight:700; line-height:1.15; word-break:break-word; max-width:100%;">{escape(label_text)}</div>'
-                    '</div>'
+                    "</div>"
                 )
 
                 # optional subtitle (raw textual value) centered under header
                 raw_disp = escape(str(raw_val)) if raw_val is not None else "—"
-                subtitle_html = f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>' if raw_val is not None else ''
+                subtitle_html = (
+                    f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>'
+                    if raw_val is not None
+                    else ""
+                )
 
                 # Indicator area
                 if raw_val is None:
@@ -2166,7 +2398,12 @@ else:
                     if sel is None:
                         # heuristic matching: startswith/contains and fuzzy containment
                         for c in cats:
-                            if c.lower().startswith(norm) or norm.startswith(c.lower()) or (len(norm) > 3 and norm in c.lower()) or (len(c) > 3 and c.lower() in norm):
+                            if (
+                                c.lower().startswith(norm)
+                                or norm.startswith(c.lower())
+                                or (len(norm) > 3 and norm in c.lower())
+                                or (len(c) > 3 and c.lower() in norm)
+                            ):
                                 sel = c
                                 break
                     if sel is None:
@@ -2180,24 +2417,33 @@ else:
                         figsize = (4.0, 1.8)
                         max_w = 420
 
-                    fig = plot_semi_gauge(cats, cols_colors, selected=sel, figsize=figsize)
+                    fig = plot_semi_gauge(
+                        cats, cols_colors, selected=sel, figsize=figsize
+                    )
                     buf = BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.02, transparent=True)
+                    fig.savefig(
+                        buf,
+                        format="png",
+                        bbox_inches="tight",
+                        pad_inches=0.02,
+                        transparent=True,
+                    )
                     plt.close(fig)
                     buf.seek(0)
                     img_data = buf.getvalue()
-                    data_uri = f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    data_uri = (
+                        f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    )
                     indicator_html = f'<div style="margin-top:6px;"><img src="{data_uri}" style="width:95%; max-width:{max_w}px; display:block; margin:0 auto;" /></div>'
 
                 # Card HTML composed without leading newlines/spaces (avoids markdown code block rendering)
                 card_html = (
-                        '<div class="placeholder-card" tabindex="0">'
-                        '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
-                        + header_html
-                        #+ subtitle_html
-                        + indicator_html +
-                        '</div>'
-                        '</div>'
+                    '<div class="placeholder-card" tabindex="0">'
+                    '<div class="placeholder-body" style="height:290px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;">'
+                    + header_html
+                    # + subtitle_html
+                    + indicator_html + "</div>"
+                    "</div>"
                 )
                 st.markdown(card_html, unsafe_allow_html=True)
 
@@ -2207,7 +2453,11 @@ else:
         # st.markdown("---")
 
         # Show any other additional political-specific keys if present
-        other_keys = [k for k in change_analysis.keys() if k not in ("orientation_shift", "intensity_change", "neutrality_change")]
+        other_keys = [
+            k
+            for k in change_analysis.keys()
+            if k not in ("orientation_shift", "intensity_change", "neutrality_change")
+        ]
         if other_keys:
             st.markdown("**Other change_analysis keys (political)**")
             for i, k in enumerate(other_keys):
@@ -2228,13 +2478,13 @@ else:
             "<style> .hover-card{ transition: box-shadow .18s ease, transform .18s ease; } .card-body{margin-bottom:14px; padding:10px; border:1px solid #eee; border-radius:8px; background:#fff;} .hover-card:hover .card-body{ box-shadow:0 12px 30px rgba(17,17,17,0.08); transform: translateY(-4px);} </style>",
             unsafe_allow_html=True,
         )
-        verdict_block = f'''
+        verdict_block = f"""
         <div class="hover-card" tabindex="0">
           <div class="card-body" style="max-height:120px; overflow:auto;">
             {escape(verdict_val)}
           </div>
         </div>
-        '''
+        """
         st.markdown(verdict_block, unsafe_allow_html=True)
 
         change_analysis = data.get("change_analysis", {}) or {}
@@ -2250,7 +2500,15 @@ else:
             "Significantly Fewer",
         ]
         # Reuse a green->neutral->red palette
-        colors7 = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7 = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         # For quality/relevance/specificity we want 7-state phrasing: adaptable labels
         categories7_quality = [
@@ -2262,7 +2520,15 @@ else:
             "Lower Quality",
             "Much Lower Quality",
         ]
-        colors7_quality = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7_quality = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         categories7_relevance = [
             "Much More Relevant",
@@ -2273,7 +2539,15 @@ else:
             "Less Relevant",
             "Much Less Relevant",
         ]
-        colors7_relevance = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7_relevance = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         categories7_specificity = [
             "Much More Specific",
@@ -2284,26 +2558,72 @@ else:
             "Less Specific",
             "Much Less Specific",
         ]
-        colors7_specificity = ["#1a9850", "#66bd63", "#a6d96a", "#ffffbf", "#fdae61", "#f46d43", "#d73027"]
+        colors7_specificity = [
+            "#1a9850",
+            "#66bd63",
+            "#a6d96a",
+            "#ffffbf",
+            "#fdae61",
+            "#f46d43",
+            "#d73027",
+        ]
 
         # 3-state for diversity
-        categories_3_diversity = ["More Diverse Sources", "Similar Source Diversity", "Less Diverse Sources"]
+        categories_3_diversity = [
+            "More Diverse Sources",
+            "Similar Source Diversity",
+            "Less Diverse Sources",
+        ]
         colors_3 = ["#1a9850", "#cccccc", "#d73027"]
 
         # Fetch raw values (try both inside change_analysis and top-level keys)
-        quantity_raw = change_analysis.get("quantity_change", data.get("quantity_change", None))
-        quality_raw = change_analysis.get("quality_change", data.get("quality_change", None))
-        relevance_raw = change_analysis.get("relevance_change", data.get("relevance_change", None))
-        specificity_raw = change_analysis.get("specificity_change", data.get("specificity_change", None))
-        diversity_raw = change_analysis.get("diversity_change", data.get("diversity_change", None))
+        quantity_raw = change_analysis.get(
+            "quantity_change", data.get("quantity_change", None)
+        )
+        quality_raw = change_analysis.get(
+            "quality_change", data.get("quality_change", None)
+        )
+        relevance_raw = change_analysis.get(
+            "relevance_change", data.get("relevance_change", None)
+        )
+        specificity_raw = change_analysis.get(
+            "specificity_change", data.get("specificity_change", None)
+        )
+        diversity_raw = change_analysis.get(
+            "diversity_change", data.get("diversity_change", None)
+        )
 
         # Items: (Title, raw_value, categories, colors, default_label)
         items_material = [
             ("Quantity change", quantity_raw, categories7, colors7, "No Change"),
-            ("Quality change", quality_raw, categories7_quality, colors7_quality, "Similar Quality"),
-            ("Relevance change", relevance_raw, categories7_relevance, colors7_relevance, "Similar Relevance"),
-            ("Specificity change", specificity_raw, categories7_specificity, colors7_specificity, "Similar Specificity"),
-            ("Diversity change", diversity_raw, categories_3_diversity, colors_3, "Similar Source Diversity"),
+            (
+                "Quality change",
+                quality_raw,
+                categories7_quality,
+                colors7_quality,
+                "Similar Quality",
+            ),
+            (
+                "Relevance change",
+                relevance_raw,
+                categories7_relevance,
+                colors7_relevance,
+                "Similar Relevance",
+            ),
+            (
+                "Specificity change",
+                specificity_raw,
+                categories7_specificity,
+                colors7_specificity,
+                "Similar Specificity",
+            ),
+            (
+                "Diversity change",
+                diversity_raw,
+                categories_3_diversity,
+                colors_3,
+                "Similar Source Diversity",
+            ),
         ]
 
         # Renderer for each gauge-card (header fixed-height so titles align)
@@ -2315,15 +2635,15 @@ else:
                     '<div style="height:56px; display:flex; align-items:center; justify-content:center; '
                     'padding:6px 10px; box-sizing:border-box; text-align:center;">'
                     '<div style="font-weight:700; line-height:1; margin-bottom:6px; word-break:break-word; max-width:100%;">'
-                    f'{escape(label_text)}'
-                    '</div>'
-                    '</div>'
+                    f"{escape(label_text)}"
+                    "</div>"
+                    "</div>"
                 )
-                #header_html = f'<div style="font-weight:700; margin-bottom:6px; text-align:center;">{escape(label_text)}</div>'
+                # header_html = f'<div style="font-weight:700; margin-bottom:6px; text-align:center;">{escape(label_text)}</div>'
 
                 # Subtitle shows the raw categorical label (centered)
                 raw_disp = escape(str(raw_val)) if raw_val is not None else "—"
-                #subtitle_html = f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>' if raw_val is not None else ''
+                # subtitle_html = f'<div style="color:#222; margin-top:0; margin-bottom:6px; text-align:center; font-style:italic;">{raw_disp}</div>' if raw_val is not None else ''
 
                 if raw_val is None:
                     indicator_html = '<div style="height:180px; display:flex; align-items:center; justify-content:center; color:#777;">(no data)</div>'
@@ -2334,7 +2654,12 @@ else:
                     if sel is None:
                         for c in cats:
                             cl = c.lower()
-                            if cl.startswith(norm) or norm.startswith(cl) or (len(norm) > 3 and norm in cl) or (len(cl) > 3 and cl in norm):
+                            if (
+                                cl.startswith(norm)
+                                or norm.startswith(cl)
+                                or (len(norm) > 3 and norm in cl)
+                                or (len(cl) > 3 and cl in norm)
+                            ):
                                 sel = c
                                 break
                     if sel is None:
@@ -2342,24 +2667,34 @@ else:
 
                     # Choose figure size and max width (wider when 7 categories)
                     if len(cats) == 7:
-                        #figsize = (7.2, 3.0)
+                        # figsize = (7.2, 3.0)
                         max_w = 360
                     elif len(cats) == 3:
-                        #figsize = (5.6, 3.2)
+                        # figsize = (5.6, 3.2)
                         max_w = 360
                     else:
-                        #figsize = (5.6, 3.0)
+                        # figsize = (5.6, 3.0)
                         max_w = 520
 
                     figsize = (3.6, 1.6) if len(cats) == 3 else (4.8, 2.2)
 
-                    fig = plot_semi_gauge(cats, cols_colors, selected=sel, figsize=figsize)
+                    fig = plot_semi_gauge(
+                        cats, cols_colors, selected=sel, figsize=figsize
+                    )
                     buf = BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.02, transparent=True)
+                    fig.savefig(
+                        buf,
+                        format="png",
+                        bbox_inches="tight",
+                        pad_inches=0.02,
+                        transparent=True,
+                    )
                     plt.close(fig)
                     buf.seek(0)
                     img_data = buf.getvalue()
-                    data_uri = f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    data_uri = (
+                        f"data:image/png;base64,{base64.b64encode(img_data).decode()}"
+                    )
                     indicator_html = f'<div style="margin-top:30px;"><img src="{data_uri}" style="width:100%; max-width:360px; display:block; margin:0 auto;" /></div>'
 
                 card_html = f"""
@@ -2375,7 +2710,7 @@ else:
         # Render all five cards in a responsive single row (wraps when narrow)
         render_grid(items_material, render_material_card, cols_per_row=5)
 
-        #st.markdown("---")
+        # st.markdown("---")
 
     # Other semantic topics fallback (unchanged)
     else:
@@ -2384,7 +2719,10 @@ else:
 
         st.write(verdict_val if verdict_val is not None else "—")
 
-        if any(k in change_analysis for k in ("orientation_shift", "intensity_change", "neutrality_change")):
+        if any(
+            k in change_analysis
+            for k in ("orientation_shift", "intensity_change", "neutrality_change")
+        ):
             orientation = change_analysis.get("orientation_shift", "—")
             intensity = change_analysis.get("intensity_change", "—")
             neutrality = change_analysis.get("neutrality_change", "—")
@@ -2394,9 +2732,18 @@ else:
             st.markdown(f"- **Intensity change:** {intensity}")
             st.markdown(f"- **Neutrality change:** {neutrality}")
 
-        elif any(k in change_analysis for k in ("overall_poland_relevance_change", "contextualization_depth_change", "localization_quality_change")):
+        elif any(
+            k in change_analysis
+            for k in (
+                "overall_poland_relevance_change",
+                "contextualization_depth_change",
+                "localization_quality_change",
+            )
+        ):
             overall = change_analysis.get("overall_poland_relevance_change", "—")
-            contextualization = change_analysis.get("contextualization_depth_change", "—")
+            contextualization = change_analysis.get(
+                "contextualization_depth_change", "—"
+            )
             localization = change_analysis.get("localization_quality_change", "—")
 
             st.markdown("**Change analysis**")
@@ -2437,12 +2784,12 @@ def is_highlight_topic(topic_name: str) -> bool:
         if canonical and canonical.lower() in tn:
             return True
     # Extra heuristics: match tokens
-    tn_tokens = re.sub(r'[^a-z0-9\s]', ' ', tn)
+    tn_tokens = re.sub(r"[^a-z0-9\s]", " ", tn)
     for canonical in HIGHLIGHT_TOPICS:
         if not canonical:
             continue
         ck = canonical.lower()
-        ck_tokens = re.findall(r'[a-z0-9]+', ck)
+        ck_tokens = re.findall(r"[a-z0-9]+", ck)
         if not ck_tokens:
             continue
         if all(tok in tn_tokens for tok in ck_tokens[:2]):
@@ -2452,27 +2799,29 @@ def is_highlight_topic(topic_name: str) -> bool:
 
 if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
     st.markdown("<hr/>", unsafe_allow_html=True)
-    st.markdown("<center><h3>Side-by-side responses</h3></center>", unsafe_allow_html=True)
+    st.markdown(
+        "<center><h3>Side-by-side responses</h3></center>", unsafe_allow_html=True
+    )
     st.markdown("<div style='height:3px'></div>", unsafe_allow_html=True)
 
     # Determine question number n from selected_label_for_q (fallbacks: question_key, display labels)
     q_number = None
     if selected_label_for_q:
-        m = re.search(r'(?i)Q(\d{1,3})', selected_label_for_q)
+        m = re.search(r"(?i)Q(\d{1,3})", selected_label_for_q)
         if m:
             try:
                 q_number = int(m.group(1))
             except Exception:
                 q_number = None
         else:
-            m2 = re.search(r'(\d{1,3})', selected_label_for_q)
+            m2 = re.search(r"(\d{1,3})", selected_label_for_q)
             if m2:
                 try:
                     q_number = int(m2.group(1))
                 except Exception:
                     q_number = None
     if q_number is None and question_key:
-        m3 = re.search(r'(\d{1,3})', str(question_key))
+        m3 = re.search(r"(\d{1,3})", str(question_key))
         if m3:
             try:
                 q_number = int(m3.group(1))
@@ -2491,7 +2840,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
         if RESPONSES_BASE and os.path.isdir(RESPONSES_BASE):
             responses_base_ok = True
             available_langs = sorted(
-                [d for d in os.listdir(RESPONSES_BASE) if os.path.isdir(os.path.join(RESPONSES_BASE, d))]
+                [
+                    d
+                    for d in os.listdir(RESPONSES_BASE)
+                    if os.path.isdir(os.path.join(RESPONSES_BASE, d))
+                ]
             )
     except Exception:
         available_langs = []
@@ -2541,19 +2894,24 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
     _options = list(dict.fromkeys(_options))  # dedupe while preserving order
 
     # Ensure a deterministic session_state value exists BEFORE creating the widget.
-    if "responses_lang" not in st.session_state or st.session_state["responses_lang"] not in _options:
+    if (
+        "responses_lang" not in st.session_state
+        or st.session_state["responses_lang"] not in _options
+    ):
         # prefer previously chosen language (if set), else first available
-        st.session_state["responses_lang"] = st.session_state.get("responses_lang") or _options[0]
+        st.session_state["responses_lang"] = (
+            st.session_state.get("responses_lang") or _options[0]
+        )
 
     # Center the control visually
     _left_col, _center_col, _right_col = st.columns([2.75, 2, 1])
     with _center_col:
         try:
             responses_lang = st.segmented_control(
-                "",   # label hidden for visual but accessible
+                "",  # label hidden for visual but accessible
                 options=_options,
                 key="responses_lang",
-                label_visibility='collapsed'
+                label_visibility="collapsed",
             )
         except Exception:
             responses_lang = st.radio(
@@ -2562,7 +2920,6 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
                 key="responses_lang",
                 horizontal=True,
             )
-
 
     # Map the display label back to the actual folder name for file-loading.
     selected_display = st.session_state.get("responses_lang", _options[0])
@@ -2579,7 +2936,6 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
     # alias for local use (pass this into load_response_text if you call it with lang parameter)
     lang_sel = selected_folder
 
-
     # spacer
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -2587,26 +2943,32 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
     old_period = None
     new_period = None
     if period and isinstance(period, str):
-        m_vs = re.search(r'(.+?)\s+vs\.?\s+(.+)', period, flags=re.I)
+        m_vs = re.search(r"(.+?)\s+vs\.?\s+(.+)", period, flags=re.I)
         if m_vs:
             left = m_vs.group(1).strip()
             right = m_vs.group(2).strip()
             old_period = left
             new_period = right
         else:
-            tokens = re.findall(r'[A-Za-z]{3,9}-\d{4}', period)
+            tokens = re.findall(r"[A-Za-z]{3,9}-\d{4}", period)
             if len(tokens) >= 2:
                 old_period, new_period = tokens[0], tokens[1]
             elif len(tokens) == 1:
                 new_period = tokens[0]
-    if not new_period or new_period.lower() in ("ungrouped", "(no periods found)", "uploaded"):
+    if not new_period or new_period.lower() in (
+        "ungrouped",
+        "(no periods found)",
+        "uploaded",
+    ):
         try:
             parts = os.path.normpath(selected_path).split(os.sep)
             if country in parts:
                 idx = parts.index(country)
                 if idx + 1 < len(parts):
                     candidate_period = parts[idx + 1]
-                    m_vs2 = re.search(r'(.+?)\s+vs\.?\s+(.+)', candidate_period, flags=re.I)
+                    m_vs2 = re.search(
+                        r"(.+?)\s+vs\.?\s+(.+)", candidate_period, flags=re.I
+                    )
                     if m_vs2:
                         old_period = m_vs2.group(1).strip()
                         new_period = m_vs2.group(2).strip()
@@ -2622,7 +2984,13 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
         try:
             available_periods = []
             if os.path.isdir(RESPONSES_DIR):
-                available_periods = sorted([d for d in os.listdir(RESPONSES_DIR) if os.path.isdir(os.path.join(RESPONSES_DIR, d))])
+                available_periods = sorted(
+                    [
+                        d
+                        for d in os.listdir(RESPONSES_DIR)
+                        if os.path.isdir(os.path.join(RESPONSES_DIR, d))
+                    ]
+                )
             if new_period and new_period not in available_periods:
                 for ap in available_periods:
                     if ap.lower() == new_period.lower():
@@ -2640,7 +3008,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
                 if idx_new > 0:
                     old_period = available_periods[idx_new - 1]
                 elif len(available_periods) > 1:
-                    old_period = available_periods[0] if available_periods[0] != new_period else None
+                    old_period = (
+                        available_periods[0]
+                        if available_periods[0] != new_period
+                        else None
+                    )
         except Exception:
             pass
 
@@ -2713,8 +3085,16 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
 
     # use currently selected language (from session_state)
     current_lang = st.session_state.get("responses_lang", "PL")
-    old_text = load_response_text(old_period, q_number, lang=current_lang) if old_period else None
-    new_text = load_response_text(new_period, q_number, lang=current_lang) if new_period else None
+    old_text = (
+        load_response_text(old_period, q_number, lang=current_lang)
+        if old_period
+        else None
+    )
+    new_text = (
+        load_response_text(new_period, q_number, lang=current_lang)
+        if new_period
+        else None
+    )
 
     # Collect evidence phrases from JSON 'evidence' block (if present)
     evidence_block = data.get("evidence", {}) if isinstance(data, dict) else {}
@@ -2726,7 +3106,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
     left_col, right_col = st.columns([1, 1])
     # Left: Old response (label with period)
     with left_col:
-        header = f"Old response ({escape(old_period)})" if old_period else f"Old response (not available)"
+        header = (
+            f"Old response ({escape(old_period)})"
+            if old_period
+            else f"Old response (not available)"
+        )
         if old_text:
             highlighted_html = highlight_text(old_text, phrases)
             # card with equal height & scrollable content
@@ -2740,7 +3124,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
             """
             st.markdown(card_html, unsafe_allow_html=True)
         else:
-            note = f"No response text found for question Q{q_number} in period: {escape(str(old_period))}" if old_period else "No old-period response available."
+            note = (
+                f"No response text found for question Q{q_number} in period: {escape(str(old_period))}"
+                if old_period
+                else "No old-period response available."
+            )
             card_html = f"""
             <div class="placeholder-card" tabindex="0">
               <div class="response-card-header">{header}</div>
@@ -2755,7 +3143,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
 
     # Right: New response (selected period)
     with right_col:
-        header = f"New response ({escape(new_period)})" if new_period else f"New response (not available)"
+        header = (
+            f"New response ({escape(new_period)})"
+            if new_period
+            else f"New response (not available)"
+        )
         if new_text:
             highlighted_html = highlight_text(new_text, phrases)
             card_html = f"""
@@ -2768,7 +3160,11 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
             """
             st.markdown(card_html, unsafe_allow_html=True)
         else:
-            note = f"No response text found for question Q{q_number} in period: {escape(str(new_period))}" if new_period else "No new-period response available."
+            note = (
+                f"No response text found for question Q{q_number} in period: {escape(str(new_period))}"
+                if new_period
+                else "No new-period response available."
+            )
             card_html = f"""
             <div class="placeholder-card" tabindex="0">
             <div class="response-card-header">{header}</div>
@@ -2783,7 +3179,7 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-# Show explanatory note only for Semantic Metric (do not show for Scalar Metric)
+    # Show explanatory note only for Semantic Metric (do not show for Scalar Metric)
     if metric_kind == "Semantic Metric":
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         st.markdown(
@@ -2795,6 +3191,7 @@ if is_highlight_topic(topic) or metric_kind == "Scalar Metric":
 # ---------------- New section: Sources & Materials (Old / New) ----------------
 # Shows st.expander() for "Old" and "New" sources loaded from
 # JSONs/<Country>/<Period>/Sources and Materials/{Old,New}/ matching the selected question.
+
 
 def _find_matching_file_for_label(paths, display_label):
     """Return the first file in paths that matches the display_label (e.g. 'Q6')."""
@@ -2808,14 +3205,15 @@ def _find_matching_file_for_label(paths, display_label):
         except Exception:
             continue
     # fallback: numeric match (first integer in display_label)
-    m = re.search(r'(\d{1,4})', str(display_label))
+    m = re.search(r"(\d{1,4})", str(display_label))
     n = int(m.group(1)) if m else None
     if n is not None:
         for p in paths:
-            m2 = re.search(r'(\d{1,4})', os.path.basename(p))
+            m2 = re.search(r"(\d{1,4})", os.path.basename(p))
             if m2 and int(m2.group(1)) == n:
                 return p
     return None
+
 
 # Determine the Sources & Materials folder path(s)
 sources_folder_name = "Sources and Materials"
@@ -2845,15 +3243,18 @@ else:
     # Determine the currently selected label, typically "Qn"
     # Prefer the authoritative selectbox value (persisted in session_state) so the
     # question selection remains stable across topic/metric changes.
-    selected_label_for_q = st.session_state.get("file_selectbox_widget")
+    selected_label_for_q = st.session_state.get("file_selectbox")
     if not selected_label_for_q:
         # fallback to index-based label (keeps backward-compatibility)
         selected_label_for_q = display_labels[file_index] if display_labels else None
 
-
     # Find actual file path for the selected question (if present)
-    old_sources_path = _find_matching_file_for_label(side_files["Old"], selected_label_for_q)
-    new_sources_path = _find_matching_file_for_label(side_files["New"], selected_label_for_q)
+    old_sources_path = _find_matching_file_for_label(
+        side_files["Old"], selected_label_for_q
+    )
+    new_sources_path = _find_matching_file_for_label(
+        side_files["New"], selected_label_for_q
+    )
 
     # Safe loader helper for JSONs with "sources_materials" list
     def _load_sources_list(path):
@@ -2865,7 +3266,9 @@ else:
                 return None
             lst = payload.get("sources_materials")
             if isinstance(lst, list):
-                return [str(x).strip() for x in lst if (x is not None and str(x).strip())]
+                return [
+                    str(x).strip() for x in lst if (x is not None and str(x).strip())
+                ]
             else:
                 return []
         except Exception:
@@ -2884,11 +3287,11 @@ else:
         # Lowercase, strip
         s = s.lower().strip()
         # Collapse whitespace
-        s = re.sub(r'\s+', ' ', s)
+        s = re.sub(r"\s+", " ", s)
         # Remove leading bullets and common list markers
-        s = re.sub(r'^[\u2022\-\*\•\.\)\s]+', '', s)
+        s = re.sub(r"^[\u2022\-\*\•\.\)\s]+", "", s)
         # Remove trailing punctuation (but keep URLs intact; we'll handle URLs separately)
-        s = s.rstrip(' .,;:-')
+        s = s.rstrip(" .,;:-")
         return s
 
     def _extract_first_url(s: str):
@@ -2896,10 +3299,10 @@ else:
         if not s:
             return None
         # crude url find — works for typical citations (http(s)://...)
-        m = re.search(r'(https?://[^\s\)\]\}]+)', s, flags=re.IGNORECASE)
+        m = re.search(r"(https?://[^\s\)\]\}]+)", s, flags=re.IGNORECASE)
         if not m:
             return None
-        raw = m.group(1).rstrip('.,;:')
+        raw = m.group(1).rstrip(".,;:")
         try:
             p = urlparse(raw)
             netloc = p.netloc.lower()
@@ -2907,13 +3310,15 @@ else:
             if netloc.startswith("www."):
                 netloc = netloc[4:]
             # reconstruct canonical-ish path (no query params)
-            path = p.path.rstrip('/')
+            path = p.path.rstrip("/")
             canon = f"{netloc}{path}"
             return canon
         except Exception:
-            return raw.lower().rstrip('/')
+            return raw.lower().rstrip("/")
 
-    def _is_match(new_s: str, old_s: str, fuzzy_threshold: float = 0.86) -> (bool, float):
+    def _is_match(
+        new_s: str, old_s: str, fuzzy_threshold: float = 0.86
+    ) -> (bool, float):
         """
         Return (match_bool, score).
         Matching strategy:
@@ -2944,7 +3349,9 @@ else:
         return (False, score)
 
     # Prepare comparison results (map each new item -> (is_new, best_match, best_score))
-    new_flags = []  # list of tuples (new_src, is_new_bool, best_match_str_or_None, score_float)
+    new_flags = (
+        []
+    )  # list of tuples (new_src, is_new_bool, best_match_str_or_None, score_float)
     _old_list = old_sources or []
     _new_list = new_sources or []
 
@@ -2967,9 +3374,10 @@ else:
                     matched = True
                     # we still keep best_score/best_match for tooltip info
                     break
-            new_flags.append((ns, not matched, best_match if matched else best_match, best_score))
+            new_flags.append(
+                (ns, not matched, best_match if matched else best_match, best_score)
+            )
     # ------------------ END: source comparison helpers ---------------
-
 
     # Build display columns
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
@@ -2988,7 +3396,7 @@ else:
                 key_src = str(s)
             return hashlib.md5(key_src.encode("utf-8")).hexdigest()[:12]
         except Exception:
-            return re.sub(r'[^0-9A-Za-z]', '_', str(s))[:20]
+            return re.sub(r"[^0-9A-Za-z]", "_", str(s))[:20]
 
     # Helper that returns the unique checkbox key to persist expander state for a given side
     def _sources_expander_checkbox_key(side: str, source_path: str, display_label: str):
@@ -3026,7 +3434,9 @@ else:
             # append escaped text before URL
             if start > last_end:
                 parts.append(escape(text[last_end:start]))
-            raw_url = m.group(0).rstrip('.,;:')  # remove trailing punctuation if present
+            raw_url = m.group(0).rstrip(
+                ".,;:"
+            )  # remove trailing punctuation if present
             safe_url = escape(raw_url)
             # create anchor that opens in new tab (and is safe)
             anchor = f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer">{safe_url}</a>'
@@ -3037,7 +3447,6 @@ else:
             parts.append(escape(text[last_end:]))
 
         return "".join(parts)
-
 
     # ----------------- Render Old / New expanders (Old = plain, New = flagged + linkified) -----------------
     for side, col_obj, src_path, src_list in sides_info:
@@ -3066,27 +3475,31 @@ else:
                 else:  # side == "New"
                     # Build an HTML unordered list so spacing/appearance matches the Old side's markdown list items
                     # Choose margin-bottom that visually matches Old; adjust px if you want slightly different spacing
-                    LI_MARGIN_PX = 17  # tweak this so spacing equals Old side (10 is typical)
+                    LI_MARGIN_PX = (
+                        17  # tweak this so spacing equals Old side (10 is typical)
+                    )
                     ul_items = []
-                    ul_items.append(f'<ul style="padding-left:18px; margin-top:0; margin-bottom:0;">')
+                    ul_items.append(
+                        f'<ul style="padding-left:18px; margin-top:0; margin-bottom:0;">'
+                    )
                     for src, is_new, best_match, score in new_flags:
                         linked_html = _linkify_citation(src)
                         if is_new:
                             if best_match:
-                                tooltip = f'closest match: {escape(best_match)} — score={score:.2f}'
+                                tooltip = f"closest match: {escape(best_match)} — score={score:.2f}"
                             else:
                                 tooltip = "no similar source in Old list"
                             # Put icon inside <span> with title for tooltip; keep same text/link structure as others
                             li_html = (
                                 f'<li style="margin-bottom:{LI_MARGIN_PX}px;">'
                                 f'<span style="font-weight:700; color:#c0392b; margin-right:6px;" title="{escape(tooltip)}">🔔</span>'
-                                f'{linked_html}'
-                                f'</li>'
+                                f"{linked_html}"
+                                f"</li>"
                             )
                         else:
                             li_html = f'<li style="margin-bottom:{LI_MARGIN_PX}px;">{linked_html}</li>'
                         ul_items.append(li_html)
-                    ul_items.append('</ul>')
+                    ul_items.append("</ul>")
                     full_ul_html = "".join(ul_items)
                     # render the whole list at once (safe: linkify already escaped non-URL text)
                     st.markdown(full_ul_html, unsafe_allow_html=True)
