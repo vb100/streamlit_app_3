@@ -1186,29 +1186,37 @@ deduped_sorted = sorted(deduped, key=_sort_key)
 # unwrap back to files list
 files = [p for (p, lbl) in deduped_sorted]
 
-if not files:
-    st.info(
-        f"No JSON files found for Country **{country}**, Period **{period}**, Topic **{topic}**."
-    )
-    st.stop()
+# ------------------ START: compute labels & ensure file_index state ------------------
 
-# Init file_index session key (numeric index)
-# -----------------------------
-# Question select + language + Prev/Next (robust implementation)
-# -----------------------------
-# Preconditions: `display_labels` is the list of labels shown in the selectbox
-#                `files` is the parallel list of file paths
-#                `clamp_index` helper exists (as in your code)
+# Labels (raw from filenames) and normalized display labels (e.g. "Q1", "Q2", ...)
+labels = [short_label(p) for p in files] if files else []
 
-# ------------------ START: Robust question selectbox + language + Prev/Next ------------------
+# Normalized display labels (always show as "Qn" when possible)
+display_labels = [extract_q_label(lbl) for lbl in labels]
 
-# Ensure file_index exists and is clamped relative to display_labels
+# Defensive: avoid empty display labels (fallback to raw filename or Qn)
+for i, dl in enumerate(display_labels):
+    if not str(dl).strip():
+        display_labels[i] = labels[i] if i < len(labels) and labels[i] else f"Q{i+1}"
+
+# If display_labels list is empty, set it to empty list (keeps later code simple)
+display_labels = display_labels or []
+
+# Init / clamp file_index session key (numeric index)
 if "file_index" not in st.session_state:
     st.session_state["file_index"] = 0
 
-# clamp defensively (works even if display_labels is empty)
+# clamp file_index relative to current labels length
 max_idx = max(0, len(display_labels) - 1)
-st.session_state["file_index"] = max(0, min(st.session_state.get("file_index", 0), max_idx))
+st.session_state["file_index"] = max(0, min(int(st.session_state.get("file_index", 0) or 0), max_idx))
+
+# Ensure the widget-key that your selectbox uses has an initial value available.
+# NOTE: this code assumes selectbox uses key="file_selectbox_widget" (adapt if you named it differently).
+if "file_selectbox_widget" not in st.session_state:
+    st.session_state["file_selectbox_widget"] = display_labels[st.session_state["file_index"]] if display_labels else "(no files)"
+
+# ------------------ END: compute labels & ensure file_index state ------------------
+
 
 # Callback: when the selectbox widget changes, update numeric index
 def _on_file_select():
