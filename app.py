@@ -1194,19 +1194,18 @@ def clamp_index(i, n):
     return max(0, min(i, n - 1))
 
 
-def set_active_file_index(idx):
+def set_active_file_index(idx: int):
     """
     Authoritative way to change active file.
     Updates both numeric file_index and file_selectbox label together.
     """
-    n = len(display_labels)
-    new_idx = clamp_index(idx, n)
-    st.session_state["file_index"] = new_idx
-    # update the selectbox label so the widget and numeric index are always in sync
-    if n:
-        st.session_state["file_selectbox"] = display_labels[new_idx]
-    else:
+    if not display_labels:
+        st.session_state["file_index"] = 0
         st.session_state["file_selectbox"] = ""
+        return
+    new_idx = clamp_index(idx, len(display_labels))
+    st.session_state["file_index"] = new_idx
+    st.session_state["file_selectbox"] = display_labels[new_idx]
 
 
 # Callback helpers for keeping selectbox label and numeric index in sync
@@ -1257,19 +1256,25 @@ with buttons_top_placeholder.container():
     prev_col, next_col = st.columns([0.6, 1])
     pad_px = 6
     pad_style = f"padding-top:{pad_px}px;"
+    current_index = st.session_state.get("file_index", 0)
+    max_index = len(display_labels) - 1
+    prev_disabled = current_index <= 0
+    next_disabled = not display_labels or current_index >= max_index
     with prev_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
-        if st.button("◀ Previous", key="prev_file"):
+        if st.button("◀ Previous", key="prev_file", disabled=prev_disabled):
             # use centralized setter so the selectbox label updates immediately too
-            set_active_file_index(st.session_state.get("file_index", 0) - 1)
+            set_active_file_index(current_index - 1)
+            _sync_active_question_from_label(st.session_state.get("file_selectbox"))
         st.markdown("</div>", unsafe_allow_html=True)
     # with spacer_col:
     #     st.write("")
     with next_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
-        if st.button("Next ▶", key="next_file"):
+        if st.button("Next ▶", key="next_file", disabled=next_disabled):
             # use centralized setter so the selectbox label updates immediately too
-            set_active_file_index(st.session_state.get("file_index", 0) + 1)
+            set_active_file_index(current_index + 1)
+            _sync_active_question_from_label(st.session_state.get("file_selectbox"))
         st.markdown("</div>", unsafe_allow_html=True)
 
 
