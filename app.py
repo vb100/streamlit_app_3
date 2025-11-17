@@ -1209,14 +1209,22 @@ def set_active_file_index(idx):
         st.session_state["file_selectbox"] = ""
 
 
-# Callback: when user chooses a label from the selectbox, update numeric index
-def on_file_select():
-    sel = st.session_state.get("file_selectbox", "")
+# Callback helpers for keeping selectbox label and numeric index in sync
+def _sync_active_question_from_label(label: str | None):
+    if not label or not display_labels:
+        st.session_state["file_index"] = 0
+        st.session_state["file_selectbox"] = display_labels[0] if display_labels else ""
+        return
     try:
-        idx = display_labels.index(sel)
+        idx = display_labels.index(label)
     except ValueError:
         idx = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
     st.session_state["file_index"] = idx
+    st.session_state["file_selectbox"] = display_labels[idx]
+
+
+def on_file_select():
+    _sync_active_question_from_label(st.session_state.get("file_selectbox"))
 
 
 # -------------------------------------------------------------------------------
@@ -1237,6 +1245,8 @@ if (
         ]
     else:
         st.session_state["file_selectbox"] = ""
+
+_sync_active_question_from_label(st.session_state.get("file_selectbox"))
 
 # ---------------------------
 # IMPORTANT: buttons first, then selectbox
