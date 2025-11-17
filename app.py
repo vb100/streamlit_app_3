@@ -1156,7 +1156,8 @@ if empty_labels:
     for i in empty_labels:
         display_labels[i] = labels[i] or f"Q{i+1}"
 
-# ---------- file selection UI (buttons + selectbox + question language) ----------
+# ---------- START: REPLACEMENT: Buttons + Selectbox + Question language ----------
+# (Replace the existing block that renders navigation buttons + question select + language)
 def clamp_index(i, n):
     """Clamp integer index to valid range [0, n-1] (n may be 0)."""
     try:
@@ -1170,19 +1171,26 @@ def clamp_index(i, n):
 def set_active_file_index(idx):
     """
     Authoritative way to change active file index (numeric).
-    Update only file_index programmatically. Trigger rerun so the selectbox widget is recreated with that index.
+    This updates st.session_state["file_index"] and triggers a rerun so the selectbox
+    widget (which is created with index=file_index) is recreated in the next render pass.
     """
     n = len(display_labels) if display_labels else 0
     new_idx = clamp_index(idx, n)
     st.session_state["file_index"] = new_idx
+    # Rerun so the selectbox widget gets recreated with the new index
     try:
         st.experimental_rerun()
     except Exception:
-        # If rerun not allowed, we still keep state updated; UI may sync on next interaction.
+        # If experimental_rerun is not allowed here (rare), we at least keep the index updated;
+        # the UI will sync on next user interaction.
         pass
 
-# Callback: when user chooses a label in the selectbox widget, update numeric index
 def on_file_select_widget():
+    """
+    Callback for when the user chooses an item in the selectbox widget.
+    We update only the numeric file_index (authoritative index) here.
+    The selectbox itself was created with index=file_index.
+    """
     sel_label = st.session_state.get("file_selectbox_widget", "")
     if not sel_label or not display_labels:
         st.session_state["file_index"] = 0
@@ -1190,22 +1198,24 @@ def on_file_select_widget():
     try:
         idx = display_labels.index(sel_label)
     except ValueError:
-        # fallback: extract first integer and convert to zero-based index (Q1 -> 0)
+        # fallback: parse 'Qn' -> n-1
         m = re.search(r'(\d{1,4})', str(sel_label))
         if m:
-            idx = max(0, int(m.group(1)) - 1)
+            try:
+                idx = max(0, int(m.group(1)) - 1)
+            except Exception:
+                idx = 0
         else:
             idx = 0
     st.session_state["file_index"] = clamp_index(idx, len(display_labels))
 
-
 # Ensure file_index exists and is valid
 if "file_index" not in st.session_state:
     st.session_state["file_index"] = 0
-st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0), len(display_labels) if display_labels else 0)
+st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0),
+                                            len(display_labels) if display_labels else 0)
 
-
-# Buttons (prev/next) — put in buttons_top_placeholder
+# Render Prev/Next buttons inside the previously created buttons_top_placeholder
 with buttons_top_placeholder.container():
     prev_col, next_col = st.columns([0.6, 1])
     pad_px = 6
@@ -1221,26 +1231,28 @@ with buttons_top_placeholder.container():
             set_active_file_index(st.session_state.get("file_index", 0) + 1)
         st.markdown("</div>", unsafe_allow_html=True)
 
-
-# Selectbox + question-language UI (inside question_top_placeholder)
+# Left container (question select + language) goes into question_top_placeholder
 with question_top_placeholder.container():
+    # create two inner columns: selectbox (bigger) + language radio (narrow)
     inner_left, inner_right = st.columns([3, 2])
-
     # LEFT: the selectbox widget (unique key name: file_selectbox_widget)
     with inner_left:
         if display_labels:
-            file_index = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
+            # pick the current index from session_state (authoritative)
+            file_index_widget_value = clamp_index(st.session_state.get("file_index", 0),
+                                                  len(display_labels))
             selected_label = st.selectbox(
                 "Select a question",
                 options=display_labels,
-                index=file_index,
-                key="file_selectbox_widget",   # <--- unique widget key (no duplicates)
+                index=file_index_widget_value,   # widget uses numeric index to set selection
+                key="file_selectbox_widget",     # unique widget key — DO NOT duplicate elsewhere
                 on_change=on_file_select_widget,
+                label_visibility="visible",
             )
         else:
             st.markdown("**Select a question** — _no files available for this topic/period_")
 
-    # RIGHT: question language radio (unchanged logic)
+    # RIGHT: question language radio (unchanged logic except ensuring session_state init)
     with inner_right:
         try:
             country_local = PREFERRED_RESPONSE_LANG.get(country) if 'PREFERRED_RESPONSE_LANG' in globals() else None
@@ -1255,6 +1267,7 @@ with question_top_placeholder.container():
         if not qlang_options:
             qlang_options = ["EN"]
 
+        # Ensure session_state["question_lang"] exists and is valid for these options
         if "question_lang" not in st.session_state or st.session_state.get("question_lang") not in qlang_options:
             st.session_state["question_lang"] = qlang_options[0]
 
@@ -1270,10 +1283,9 @@ with question_top_placeholder.container():
             label_visibility="collapsed",
         )
 
-# Downstream authoritative selection
+# Downstream authoritative selection: file_index and selected_path
 file_index = clamp_index(st.session_state.get("file_index", 0), len(files) if files else 0)
-st.session_state["file_index"] = file_index
-
+st.session_state["file_index"] = file_index  # ensure stored
 if files and len(files) > 0:
     try:
         selected_path = files[file_index]
@@ -1285,6 +1297,9 @@ else:
     selected_path = None
     selected_name = None
 
+# Update question placeholder text (this block expects `display_labels` and `_questions`)
+# Note: keep the rest of your existing code that consumes selected_path / selected_name unchanged.
+# ---------- END: REPLACEMENT: Buttons + Selectbox + Question language ----------
 
 # ---------------- UPDATE the question placeholder (placed earlier) based on the selected_label ----------------
 # Load questions.json (cached)
