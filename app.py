@@ -1205,17 +1205,27 @@ def on_period_change():
     st.session_state["topic_selected"] = None
 
 # -------------------- Period selectbox (top row) --------------------
-# compute a safe initial index for period widget
+# Use a unique widget key to avoid duplicate-element-key errors, then sync the
+# legacy session_state alias 'period_selected' for the rest of the app.
+
+# compute a safe initial index for period widget (use existing session value if present)
 period_selected_initial = st.session_state.get("period_selected", periods[0] if periods else None)
 period_index_safe = periods.index(period_selected_initial) if (period_selected_initial in periods) else 0
 
+# Create the widget with a stable, unique widget key
 period = st.selectbox(
     "Select Period",
     options=periods,
     index=period_index_safe,
-    key="period_selected",
+    key="period_selectbox",     # <- changed key (was "period_selected")
     on_change=on_period_change
 )
+
+# Immediately sync the legacy alias (so existing code that reads
+# st.session_state['period_selected'] continues to work).
+# This assignment is safe: it only writes a session-state entry, it doesn't create a widget.
+st.session_state["period_selected"] = st.session_state.get("period_selectbox", period_selected_initial)
+
 
 # placeholders reserved in the top row (keep your layout)
 question_top_placeholder = top_cols[2].empty()
