@@ -876,14 +876,14 @@ with top_cols[1]:
         st.session_state["file_selectbox"] = file_labels[0] if file_labels else None
     if "file_index" not in st.session_state:
         # attempt to derive index from file_selectbox
-        if st.session_state.get("file_selectbox") in file_labels:
-            st.session_state["file_index"] = file_labels.index(st.session_state.get("file_selectbox"))
+        if st.session_state.get("file_selectbox_widget") in file_labels:
+            st.session_state["file_index"] = file_labels.index(st.session_state.get("file_selectbox_widget"))
         else:
             st.session_state["file_index"] = 0
 
     # Callback when user picks a different file from selectbox
     def _on_file_change():
-        sel = st.session_state.get("file_selectbox")
+        sel = st.session_state.get("file_selectbox_widget")
         if sel in file_labels:
             st.session_state["file_index"] = file_labels.index(sel)
         else:
@@ -1156,7 +1156,7 @@ if empty_labels:
     for i in empty_labels:
         display_labels[i] = labels[i] or f"Q{i+1}"
 
-# ------------------- NEW: centralized helpers for index/label sync -------------------
+# ---------- file selection UI (buttons + selectbox + question language) ----------
 def clamp_index(i, n):
     """Clamp integer index to valid range [0, n-1] (n may be 0)."""
     try:
@@ -1169,23 +1169,21 @@ def clamp_index(i, n):
 
 def set_active_file_index(idx):
     """
-    Authoritative way to change active file.
-    Updates numeric file_index only (no direct writes to widget-backed keys).
-    Then triggers a rerun so the selectbox is recreated with index=file_index.
+    Authoritative way to change active file index (numeric).
+    Update only file_index programmatically. Trigger rerun so the selectbox widget is recreated with that index.
     """
     n = len(display_labels) if display_labels else 0
     new_idx = clamp_index(idx, n)
     st.session_state["file_index"] = new_idx
-    # Trigger rerun so the selectbox (created with index=file_index) shows the updated value.
-    # If experimental_rerun is not allowed in the environment, we fall back silently.
     try:
         st.experimental_rerun()
     except Exception:
+        # If rerun not allowed, we still keep state updated; UI may sync on next interaction.
         pass
 
-# Callback: when user chooses a label from the selectbox, update numeric index
-def on_file_select():
-    sel_label = st.session_state.get("file_selectbox", "")
+# Callback: when user chooses a label in the selectbox widget, update numeric index
+def on_file_select_widget():
+    sel_label = st.session_state.get("file_selectbox_widget", "")
     if not sel_label or not display_labels:
         st.session_state["file_index"] = 0
         return
@@ -1200,17 +1198,14 @@ def on_file_select():
             idx = 0
     st.session_state["file_index"] = clamp_index(idx, len(display_labels))
 
-# ---------------------------
-# Ensure session_state['file_index'] exists and is within bounds BEFORE rendering widgets.
-# We do NOT programmatically set st.session_state["file_selectbox"] here.
-# ---------------------------
+
+# Ensure file_index exists and is valid
 if "file_index" not in st.session_state:
     st.session_state["file_index"] = 0
 st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0), len(display_labels) if display_labels else 0)
 
-# ---------------------------
-# Buttons (prev / next) — keep them in your buttons_top_placeholder
-# ---------------------------
+
+# Buttons (prev/next) — put in buttons_top_placeholder
 with buttons_top_placeholder.container():
     prev_col, next_col = st.columns([0.6, 1])
     pad_px = 6
@@ -1226,30 +1221,26 @@ with buttons_top_placeholder.container():
             set_active_file_index(st.session_state.get("file_index", 0) + 1)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------------------------
-# Selectbox + Question-language UI (inside question_top_placeholder)
-# ---------------------------
+
+# Selectbox + question-language UI (inside question_top_placeholder)
 with question_top_placeholder.container():
-    # two inner columns: selectbox (larger) + language radio (narrow)
     inner_left, inner_right = st.columns([3, 2])
 
-    # LEFT: the selectbox — create it with index=file_index and key="file_selectbox"
+    # LEFT: the selectbox widget (unique key name: file_selectbox_widget)
     with inner_left:
         if display_labels:
-            # Ensure file_index is valid for selectbox
             file_index = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
-            # Create selectbox: the widget owns file_selectbox key; do NOT overwrite that key programmatically.
             selected_label = st.selectbox(
                 "Select a question",
                 options=display_labels,
                 index=file_index,
-                key="file_selectbox",
-                on_change=on_file_select,
+                key="file_selectbox_widget",   # <--- unique widget key (no duplicates)
+                on_change=on_file_select_widget,
             )
         else:
             st.markdown("**Select a question** — _no files available for this topic/period_")
 
-    # RIGHT: question language radio (keeps your current logic)
+    # RIGHT: question language radio (unchanged logic)
     with inner_right:
         try:
             country_local = PREFERRED_RESPONSE_LANG.get(country) if 'PREFERRED_RESPONSE_LANG' in globals() else None
@@ -1279,9 +1270,7 @@ with question_top_placeholder.container():
             label_visibility="collapsed",
         )
 
-# ---------------------------
-# Resolve selection for downstream code using authoritative numeric file_index
-# ---------------------------
+# Downstream authoritative selection
 file_index = clamp_index(st.session_state.get("file_index", 0), len(files) if files else 0)
 st.session_state["file_index"] = file_index
 
@@ -2803,7 +2792,7 @@ else:
     # Determine the currently selected label, typically "Qn"
     # Prefer the authoritative selectbox value (persisted in session_state) so the
     # question selection remains stable across topic/metric changes.
-    selected_label_for_q = st.session_state.get("file_selectbox")
+    selected_label_for_q = st.session_state.get("file_selectbox_widget")
     if not selected_label_for_q:
         # fallback to index-based label (keeps backward-compatibility)
         selected_label_for_q = display_labels[file_index] if display_labels else None
