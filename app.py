@@ -784,77 +784,159 @@ with top_cols[0]:
 # compute periods now that `country` is known
 periods = list_periods_for_country(country, BASE_DIRS)
 
+# --- REPLACE the existing `with top_cols[1]:` block with this new robust block ---
+# (This block keeps period/file/topic state authoritative and synchronized.)
+
 with top_cols[1]:
-    # -------------------------
-    # Keep `period_selected` authoritative and in sync with session_state
-    # -------------------------
-    country_selected = st.session_state.get("country_selected")
-    if country_selected != country:
-        # Country changed -> reset stored values to sensible defaults for the new country
+    # Ensure canonical session keys exist and are initialized
+    if "country_selected" not in st.session_state:
         st.session_state["country_selected"] = country
+
+    # Compute available periods for the chosen country (your existing method)
+    periods = sorted(get_periods_for_country(country, BASE_DIRS)) if "get_periods_for_country" in globals() else periods
+
+    # Ensure session state's period_selected exists and is valid
+    if "period_selected" not in st.session_state or st.session_state.get("period_selected") not in periods:
         st.session_state["period_selected"] = periods[0] if periods else None
-        # also reset file/topic pointers to avoid stale selection
+
+    # Keep country selection authoritative: if country changed, reset dependent state
+    if st.session_state.get("country_selected") != country:
+        st.session_state["country_selected"] = country
+        # reset period to first available for new country
+        st.session_state["period_selected"] = periods[0] if periods else None
+        st.session_state["file_selectbox"] = None
         st.session_state["file_index"] = 0
         st.session_state["topic_selected"] = None
 
-    # compute safe default / index for the selectbox
-    period_default = periods[0] if periods else None
-    period_selected = st.session_state.get("period_selected", period_default)
-    try:
-        period_index = periods.index(period_selected) if (period_selected in periods) else 0
-    except Exception:
-        period_index = 0
+    # Helper to collect files and labels for a given (country, period, topic)
+    def _collect_files_and_labels(country_name, period_name, topic_name):
+        """
+        Returns tuple: (file_paths_list, labels_list)
+        file_paths_list: list of filesystem paths to files (preserve order)
+        labels_list: human readable labels (short_label) used in selectbox
+        """
+        files = []
+        # If you already have a helper in your code, replace the below with it.
+        for base in BASE_DIRS:
+            folder = os.path.join(base, country_name, period_name, topic_name) if topic_name else os.path.join(base, country_name, period_name)
+            if os.path.isdir(folder):
+                # prefer json / txt files, sorted for determinism
+                files.extend(sorted(glob(os.path.join(folder, "*.json"))))
+                files.extend(sorted(glob(os.path.join(folder, "*.txt"))))
+        # Deduplicate while preserving order (in case multiple BASE_DIRS)
+        seen = set()
+        files_unique = []
+        for f in files:
+            if f not in seen:
+                files_unique.append(f)
+                seen.add(f)
+        labels = [short_label(fp) for fp in files_unique]
+        return files_unique, labels
 
-    # callback when the user explicitly changes period in the UI
+    # Callback when period is changed: reset file/topic state
     def _on_period_change():
-        # reset view to first file for the new period and clear topic so it will be recomputed
+        # Reset question file index to first item after period change
         st.session_state["file_index"] = 0
+        st.session_state["file_selectbox"] = None  # will be set below when we refresh files
+        # Clear topic so it will be re-computed/normalized below
         st.session_state["topic_selected"] = None
 
-    # Render the selectbox (single authoritative key: "period_selected")
-    if periods:
-        period = st.selectbox(
-            "Select Period",
-            options=periods,
-            index=period_index,
-            key="period_selected",    # single authoritative session key
-            on_change=_on_period_change
-        )
-    else:
-        # no available periods for this country: render a disabled selectbox-like message
-        st.markdown("**Select Period** — _no periods found for this country_")
-        period = None
+    # Render period selectbox (authoritative key is 'period_selected')
+    # Compute a safe index to pass to the widget
+    period_selected_initial = st.session_state.get("period_selected", periods[0] if periods else None)
+    period_index_safe = periods.index(period_selected_initial) if (period_selected_initial in periods) else 0
 
-    # placeholders in the same top row (kept here to maintain layout)
+    period = st.selectbox(
+        "Select Period",
+        options=periods,
+        index=period_index_safe,
+        key="period_selected",
+        on_change=_on_period_change
+    )
+
+    # placeholders for question select + language radio and for the prev/next buttons (kept in top row)
     question_top_placeholder = top_cols[2].empty()
     buttons_top_placeholder = top_cols[3].empty()
 
-    # compute topics (subfolders under period) using the selected period
-    topics = list_topics_for_country_period(country, period, BASE_DIRS) if period else []
+    # compute topics for the currently selected period (fresh)
+    topics = list_topics_for_country_period(country, period, BASE_DIRS)
 
-    # -------------------------
-    # Normalize / canonicalize topic_selected in session_state
-    # -------------------------
-    # read any previously-stored value
-    topic_selected = st.session_state.get("topic_selected", None)
+    # ensure topic_selected is canonical and exists in topics
+    if topics:
+        if st.session_state.get("topic_selected") not in topics:
+            st.session_state["topic_selected"] = topics[0]
 
-    if not topics:
-        # no topics available -> ensure we clear any stored topic
-        topic_selected = None
-        st.session_state["topic_selected"] = None
-        topic_index = 0
-    else:
-        # if stored topic is missing / invalid, set canonical one (first in list)
-        if topic_selected not in topics:
-            topic_selected = topics[0]
-            st.session_state["topic_selected"] = topic_selected
+    # Now collect files and labels for the current (country, period, topic)
+    current_topic = st.session_state.get("topic_selected")
+    files, file_labels = _collect_files_and_labels(country, period, current_topic)
 
-        # compute safe index now that topic_selected is canonical
-        try:
-            topic_index = topics.index(topic_selected)
-        except Exception:
-            topic_index = 0
+    # Ensure session keys for file selection/index exist
+    if "file_selectbox" not in st.session_state:
+        # initialize to first label if available
+        st.session_state["file_selectbox"] = file_labels[0] if file_labels else None
+    if "file_index" not in st.session_state:
+        # attempt to derive index from file_selectbox
+        if st.session_state.get("file_selectbox") in file_labels:
+            st.session_state["file_index"] = file_labels.index(st.session_state.get("file_selectbox"))
+        else:
+            st.session_state["file_index"] = 0
 
+    # Callback when user picks a different file from selectbox
+    def _on_file_change():
+        sel = st.session_state.get("file_selectbox")
+        if sel in file_labels:
+            st.session_state["file_index"] = file_labels.index(sel)
+        else:
+            # safety fallback
+            st.session_state["file_index"] = 0
+
+    # Prev/Next callbacks (update both file_index and file_selectbox)
+    def _on_prev():
+        idx = st.session_state.get("file_index", 0)
+        if idx > 0:
+            idx -= 1
+            st.session_state["file_index"] = idx
+            if file_labels:
+                st.session_state["file_selectbox"] = file_labels[idx]
+
+    def _on_next():
+        idx = st.session_state.get("file_index", 0)
+        if file_labels:
+            if idx < len(file_labels) - 1:
+                idx += 1
+                st.session_state["file_index"] = idx
+                st.session_state["file_selectbox"] = file_labels[idx]
+
+    # Render the question (file) selectbox into the placeholder (keeps it in the top row visually)
+    # Use the canonical session key 'file_selectbox' so other code reads one value everywhere
+    file_index_now = st.session_state.get("file_index", 0)
+    file_index_now = min(file_index_now, max(0, len(file_labels) - 1))  # clamp safely
+
+    # Render selectbox in the reserved placeholder column
+    with question_top_placeholder:
+        if file_labels:
+            st.selectbox(
+                "Select a question",
+                options=file_labels,
+                index=file_index_now,
+                key="file_selectbox",
+                on_change=_on_file_change
+            )
+        else:
+            st.selectbox("Select a question", options=["(no files)"], index=0, key="file_selectbox", disabled=True)
+
+    # Render Prev/Next buttons into the reserved placeholder
+    with buttons_top_placeholder:
+        bcols = st.columns([1, 1])
+        with bcols[0]:
+            st.button("◀ Previous", on_click=_on_prev, key="prev_button")
+        with bcols[1]:
+            st.button("Next ▶", on_click=_on_next, key="next_button")
+
+# after the top-row block, compute (safely) topic_index
+topic_selected = st.session_state.get("topic_selected")
+topic_index = topics.index(topic_selected) if (topic_selected in topics) else 0
+# --- END replacement block ---
 
 # ---------------- Insert question placeholder HERE (it will be updated later after files/labels are known) ----------------
 question_placeholder = st.empty()
