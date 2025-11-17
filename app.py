@@ -1200,57 +1200,89 @@ if not files:
 #                `files` is the parallel list of file paths
 #                `clamp_index` helper exists (as in your code)
 
-# Ensure authoritative numeric index exists
+# ------------------ START: Robust question selectbox + language + Prev/Next ------------------
+
+# Ensure file_index exists and is clamped relative to display_labels
 if "file_index" not in st.session_state:
     st.session_state["file_index"] = 0
 
-# Clamp current numeric index to valid range
-# Defensive: ensure `display_labels` exists before using it to clamp file_index.
-# (Some code paths build file_labels/files later, so we make a best-effort here.)
+# clamp defensively (works even if display_labels is empty)
+max_idx = max(0, len(display_labels) - 1)
+st.session_state["file_index"] = max(0, min(st.session_state.get("file_index", 0), max_idx))
 
-if "display_labels" not in globals():
-    display_labels = []
-
-# Prefer an already computed `file_labels` (string labels used for selectbox)
-if (not display_labels) and "file_labels" in globals() and file_labels:
-    # copy file_labels (they should already be user-facing strings like "Q1", "Q2"...)
-    display_labels = list(file_labels)
-
-# Otherwise, if we have `files` (filesystem paths), compute display labels robustly
-if (not display_labels) and "files" in globals() and files:
+# Callback: when the selectbox widget changes, update numeric index
+def _on_file_select():
+    sel = st.session_state.get("file_selectbox_widget", None)
+    if sel is None:
+        return
     try:
-        # Obtain short names from file paths then normalized Q labels
-        labels = [short_label(p) for p in files]
-        display_labels = [extract_q_label(lbl) for lbl in labels]
-        # fill empty labels defensively
-        empty_idxs = [i for i, lbl in enumerate(display_labels) if not str(lbl).strip()]
-        for i in empty_idxs:
-            display_labels[i] = labels[i] or f"Q{i+1}"
-    except Exception:
-        # fallback to a safe empty list
-        display_labels = []
+        idx = display_labels.index(sel)
+    except ValueError:
+        idx = 0
+    st.session_state["file_index"] = idx
+    # do not assign file_selectbox_widget here — it's the widget's value
 
-# Finally, clamp numeric file_index to valid range based on display_labels length
-st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
-file_index = st.session_state["file_index"]
+# Prev/Next callbacks: update numeric index then rerun so the selectbox is recreated with new index
+def _on_prev_click():
+    idx = st.session_state.get("file_index", 0)
+    if idx > 0:
+        st.session_state["file_index"] = idx - 1
+        st.experimental_rerun()
 
-# --- Buttons first (so their callbacks set st.session_state["file_index"] on click) ---
+def _on_next_click():
+    idx = st.session_state.get("file_index", 0)
+    if idx < max_idx:
+        st.session_state["file_index"] = idx + 1
+        st.experimental_rerun()
+
+# Render the selectbox + language radio into question_top_placeholder
+with question_top_placeholder.container():
+    inner_left, inner_right = st.columns([5, 1])
+    with inner_left:
+        if display_labels:
+            st.selectbox(
+                "Select a question",
+                options=display_labels,
+                index=st.session_state.get("file_index", 0),
+                key="file_selectbox_widget",
+                on_change=_on_file_select
+            )
+        else:
+            st.selectbox("Select a question", options=["(no files)"], index=0, key="file_selectbox_widget", disabled=True)
+    with inner_right:
+        if "question_lang" not in st.session_state:
+            st.session_state["question_lang"] = "EN"
+        st.markdown(
+            "<div style='display:flex; align-items:center; height:100%; padding-left:6px; padding-right:6px;'>",
+            unsafe_allow_html=True,
+        )
+        st.radio(
+            "Question language",
+            options=["EN", "PL"],
+            index=0 if st.session_state.get("question_lang", "EN") == "EN" else 1,
+            key="question_lang",
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+# Render Prev/Next buttons into buttons_top_placeholder
 with buttons_top_placeholder.container():
-    # Two small columns: Prev | Next (feel free to adjust proportions)
-    prev_col, next_col = st.columns([0.6, 1.0])
+    prev_col, spacer_col, next_col = st.columns([5, 0.01, 5])
     pad_px = 6
     pad_style = f"padding-top:{pad_px}px;"
     with prev_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
-        if st.button("◀ Previous", key="prev_file"):
-            # update authoritative index directly
-            st.session_state["file_index"] = max(0, st.session_state.get("file_index", 0) - 1)
+        st.button("◀ Previous", key="prev_button", on_click=_on_prev_click)
         st.markdown("</div>", unsafe_allow_html=True)
+    with spacer_col:
+        st.write("")
     with next_col:
         st.markdown(f"<div style='{pad_style}'>", unsafe_allow_html=True)
-        if st.button("Next ▶", key="next_file"):
-            st.session_state["file_index"] = min(len(display_labels) - 1, st.session_state.get("file_index", 0) + 1)
+        st.button("Next ▶", key="next_button", on_click=_on_next_click)
         st.markdown("</div>", unsafe_allow_html=True)
+
+# ------------------ END: Robust question selectbox + language + Prev/Next ------------------
+
 
 # After possible button updates, re-clamp and refresh local var
 st.session_state["file_index"] = clamp_index(st.session_state.get("file_index", 0), len(display_labels))
